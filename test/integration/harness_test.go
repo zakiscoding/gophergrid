@@ -102,7 +102,7 @@ func db(t *testing.T) *pgxpool.Pool {
 // reset deletes all jobs so each test starts from an empty queue.
 func reset(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
-	if _, err := pool.Exec(context.Background(), `TRUNCATE jobs CASCADE`); err != nil {
+	if _, err := pool.Exec(context.Background(), `TRUNCATE batches, jobs CASCADE`); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -25,7 +25,7 @@ func main() {
 	host, _ := os.Hostname()
 	id := config.String("WORKER_ID", host)
 	gpuMode := config.String("GPU_MODE", "none")
-	gpus, err := worker.DiscoverGPUs(ctx, gpuMode, int(config.Int("SIM_GPUS", 1)),
+	gpus, err := worker.DiscoverGPUs(ctx, gpuMode, id, int(config.Int("SIM_GPUS", 1)),
 		config.Int("SIM_GPU_MEMORY_MB", 12288), config.String("SIM_GPU_MODEL", "sim-rtx-5070"))
 	if err != nil {
 		log.Error("gpu discovery", "err", err)

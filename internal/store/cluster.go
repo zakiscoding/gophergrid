@@ -280,11 +280,14 @@ func (s *Store) ScheduleBatch(ctx context.Context, epoch int64, limit int, lease
 		aIDs := make([]string, len(out))
 		aAttempts := make([]int32, len(out))
 		aWorkers := make([]string, len(out))
+		aGPUs := make([]string, len(out))
 		for i, a := range out {
-			aIDs[i], aAttempts[i], aWorkers[i] = a.JobID, int32(a.Attempt), a.WorkerID
+			aIDs[i], aAttempts[i], aWorkers[i], aGPUs[i] = a.JobID, int32(a.Attempt), a.WorkerID, joinIDs(a.GPUIDs)
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO attempts (job_id, attempt, worker_id)
-			SELECT * FROM unnest($1::uuid[], $2::int[], $3::text[])`, aIDs, aAttempts, aWorkers)
+		_, err = tx.Exec(ctx, `INSERT INTO attempts (job_id, attempt, worker_id, gpu_ids)
+			SELECT id, attempt, worker, CASE WHEN gpus = '' THEN NULL ELSE string_to_array(gpus, ',') END
+			FROM unnest($1::uuid[], $2::int[], $3::text[], $4::text[]) AS a(id, attempt, worker, gpus)`,
+			aIDs, aAttempts, aWorkers, aGPUs)
 		return err
 	})
 	return out, err

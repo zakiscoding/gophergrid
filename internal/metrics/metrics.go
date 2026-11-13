@@ -99,3 +99,9 @@ var (
 		Buckets: prometheus.ExponentialBuckets(0.001, 2, 14),
 	})
 )
+
+// Unschedulable is queued jobs (in the last scheduling pass) that no live worker could run
+// even when idle: too much CPU, memory, GPU or GPU memory, or a job type nobody runs.
+var Unschedulable = promauto.NewGauge(prometheus.GaugeOpts{
+	Name: "gophergrid_unschedulable_jobs", Help: "Queued jobs that no live worker can run even when idle.",
+})

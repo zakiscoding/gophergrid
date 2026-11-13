@@ -116,7 +116,7 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 const jobColumns = `j.id, j.idempotency_key, j.type, j.payload, j.priority, j.cpu_millis, j.memory_mb,
 	j.gpus, j.gpu_memory_mb, j.timeout_ms, j.max_attempts, j.status, j.attempt, j.worker_id,
-	j.lease_expires_at, j.last_error, j.created_at, j.assigned_at, j.started_at, j.finished_at, j.gpu_ids`
+	j.lease_expires_at, j.last_error, j.created_at, j.assigned_at, j.started_at, j.finished_at, j.gpu_ids, j.batch_id`
 
 func scanJob(row pgx.Row, extra ...any) (jobs.Job, error) {
 	var j jobs.Job
@@ -124,7 +124,7 @@ func scanJob(row pgx.Row, extra ...any) (jobs.Job, error) {
 	dest := []any{&j.ID, &j.IdempotencyKey, &j.Type, &j.Payload, &j.Priority, &j.Resources.CPUMillis,
 		&j.Resources.MemoryMB, &j.Resources.GPUs, &j.Resources.GPUMemoryMB, &j.TimeoutMS, &j.MaxAttempts,
 		&status, &j.Attempt, &j.WorkerID, &j.LeaseExpiresAt, &j.LastError, &j.CreatedAt, &j.AssignedAt,
-		&j.StartedAt, &j.FinishedAt, &j.GPUIDs}
+		&j.StartedAt, &j.FinishedAt, &j.GPUIDs, &j.BatchID}
 	err := row.Scan(append(dest, extra...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return j, ErrNotFound
