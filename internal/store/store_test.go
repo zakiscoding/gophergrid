@@ -3,10 +3,13 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 
 	"github.com/zakiscoding/gophergrid/internal/jobs"
 )
@@ -239,8 +242,7 @@ func TestDeposedLeaderIsFencedOut(t *testing.T) {
 		}
 		return out
 	}
-	order := "j.priority DESC, j.created_at"
-	if _, err := s.ScheduleBatch(ctx, 10, 10, time.Second, order, placeAll); err != ErrNotLeader {
+	if _, err := s.ScheduleBatch(ctx, 10, 10, time.Second, time.Minute, placeAll); err != ErrNotLeader {
 		t.Fatalf("deposed leader assigned work: %v", err)
 	}
 	if _, err := s.ReapExpiredFenced(ctx, 10, time.Second); err != ErrNotLeader {
@@ -249,7 +251,7 @@ func TestDeposedLeaderIsFencedOut(t *testing.T) {
 	if _, _, err := s.MarkDeadWorkers(ctx, 10, time.Second); err != ErrNotLeader {
 		t.Fatalf("deposed leader declared workers dead: %v", err)
 	}
-	got, err := s.ScheduleBatch(ctx, 20, 10, time.Second, order, placeAll)
+	got, err := s.ScheduleBatch(ctx, 20, 10, time.Second, time.Minute, placeAll)
 	if err != nil || len(got) != 1 || got[0].Attempt != 1 {
 		t.Fatalf("current leader: %+v %v", got, err)
 	}
@@ -269,5 +271,37 @@ func TestHeartbeatRenewsOnlyCurrentAttempts(t *testing.T) {
 	}
 	if n, _ := s.RenewLeases(ctx, "w2", []Held{{j.ID, 1}}, time.Minute); n != 0 {
 		t.Fatal("another worker renewed a lease it doesn't hold")
+	}
+}
+
+// TestAgingQueueMatchesNaiveOrder checks the index-friendly aging query against a plain
+// full sort on a queue with mixed priorities and ages.
+func TestAgingQueueMatchesNaiveOrder(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	if _, err := s.Pool.Exec(ctx, `INSERT INTO jobs (id, type, payload, priority, cpu_millis, memory_mb, timeout_ms, max_attempts, created_at)
+		SELECT gen_random_uuid(), 'sleep', '{}', (random() * 40)::int - 20, 100, 16, 60000, 5,
+		       now() - random() * interval '2 hours'
+		FROM generate_series(1, 3000)`); err != nil {
+		t.Fatal(err)
+	}
+	ids := func(sql string) []string {
+		rows, err := s.Pool.Query(ctx, sql, 300)
+		if err != nil {
+			t.Fatal(err)
+		}
+		js, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (string, error) { j, err := scanJob(r); return j.ID, err })
+		if err != nil {
+			t.Fatal(err)
+		}
+		return js
+	}
+	for _, aging := range []time.Duration{time.Minute, 10 * time.Minute} {
+		naive := ids(fmt.Sprintf(`SELECT `+jobColumns+` FROM jobs j WHERE j.status = 'queued'
+			ORDER BY (j.priority + extract(epoch FROM now() - j.created_at) / %f) DESC, j.created_at LIMIT $1`, aging.Seconds()))
+		fast := ids(QueueSQL(aging, false))
+		if len(naive) != 300 || fmt.Sprint(naive) != fmt.Sprint(fast) {
+			t.Fatalf("aging %s: orders differ (naive %d rows, fast %d rows)", aging, len(naive), len(fast))
+		}
 	}
 }

@@ -1,0 +1,31 @@
+{
+  "name": "05-batch-insert",
+  "jobs": 20000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 3,
+  "note": "eager sync + long-poll + single-statement batch insert",
+  "submit_seconds": 0.712164244,
+  "submit_jobs_per_sec": 28083.409365887794,
+  "wall_seconds": 26.037363,
+  "throughput_jobs_per_sec": 768.1269412728163,
+  "queue_latency_ms": {
+    "p50": 15096.1,
+    "p95": 24520.1,
+    "p99": 25204.4
+  },
+  "end_to_end_ms": {
+    "p50": 15336,
+    "p95": 24610.4,
+    "p99": 25263.5
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 20000,
+  "duplicate_results": 0,
+  "config": {
+    "HEARTBEAT_LONG_POLL": "400ms"
+  },
+  "at": "2026-11-13T21:00:58.631328024Z"
+}

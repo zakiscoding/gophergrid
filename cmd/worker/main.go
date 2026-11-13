@@ -58,7 +58,8 @@ func main() {
 	}()
 
 	agent := &worker.Agent{Info: info, Transport: transport, Runners: runners,
-		Interval: config.Duration("HEARTBEAT_INTERVAL", 500*time.Millisecond), Log: log}
+		Interval: config.Duration("HEARTBEAT_INTERVAL", 500*time.Millisecond),
+		Eager:    config.Bool("EAGER_SYNC", true), Log: log}
 	if err := agent.Run(ctx, config.Duration("DRAIN_TIMEOUT", 30*time.Second)); err != nil {
 		log.Error("worker stopped", "err", err)
 		os.Exit(1)

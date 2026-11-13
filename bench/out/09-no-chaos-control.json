@@ -1,0 +1,28 @@
+{
+  "name": "09-no-chaos-control",
+  "jobs": 3000,
+  "job_type": "sleep",
+  "job_ms": 200,
+  "cpu_millis": 250,
+  "workers": 5,
+  "note": "control for 08: same workload, no kills",
+  "submit_seconds": 0.063829706,
+  "submit_jobs_per_sec": 47000.059815409455,
+  "wall_seconds": 13.654546,
+  "throughput_jobs_per_sec": 219.70704848041086,
+  "queue_latency_ms": {
+    "p50": 6691.5,
+    "p95": 12709.5,
+    "p99": 13359.2
+  },
+  "end_to_end_ms": {
+    "p50": 6905.3,
+    "p95": 12920.2,
+    "p99": 13570.4
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 3000,
+  "duplicate_results": 0,
+  "at": "2026-11-13T21:06:57.403001597Z"
+}

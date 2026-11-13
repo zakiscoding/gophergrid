@@ -19,7 +19,7 @@ x-scheduler: &scheduler
     HEARTBEAT_TIMEOUT: 3s
     LEASE_TTL: 10s
     PRIORITY_AGING: 60s
-    HEARTBEAT_LONG_POLL: ${HEARTBEAT_LONG_POLL:-0s}
+    HEARTBEAT_LONG_POLL: ${HEARTBEAT_LONG_POLL:-400ms}  # 0s = reply at once (docs/RESULTS.md)
 
 x-worker: &worker
   build: { context: ., target: worker }
@@ -29,6 +29,7 @@ x-worker: &worker
   environment: &worker-env
     SCHEDULER_ADDRS: scheduler-1:9090,scheduler-2:9090
     HEARTBEAT_INTERVAL: 500ms
+    EAGER_SYNC: ${EAGER_SYNC:-true}
     CPU_MILLIS: "2000"
     MEMORY_MB: "2048"
     GPU_MODE: none

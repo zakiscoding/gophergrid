@@ -94,6 +94,22 @@ func (s *Server) submitBatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	keyed := false
+	for _, spec := range req.Jobs {
+		keyed = keyed || spec.IdempotencyKey != ""
+	}
+	if !keyed { // fast path: one INSERT for the whole batch
+		out, err := s.Store.SubmitMany(r.Context(), req.Jobs)
+		if err != nil {
+			s.fail(w, "submit batch", err)
+			return
+		}
+		for _, j := range out {
+			metrics.JobsSubmitted.WithLabelValues(j.Type).Inc()
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"jobs": out})
+		return
+	}
 	out := make([]jobs.Job, 0, len(req.Jobs))
 	for _, spec := range req.Jobs {
 		j, created, err := s.Store.Submit(r.Context(), spec)

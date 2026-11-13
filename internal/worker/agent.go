@@ -77,13 +77,18 @@ type Agent struct {
 	Transport Transport
 	Runners   map[string]Runner
 	Interval  time.Duration // how often to sync (phase 2: the heartbeat interval)
-	Log       *slog.Logger
+	// Eager re-syncs right after receiving work and whenever a task finishes, instead of
+	// waiting for the next tick. With server long polling this keeps a worker waiting at
+	// the leader whenever it has free capacity, so new work is delivered in milliseconds.
+	Eager bool
+	Log   *slog.Logger
 
 	mu       sync.Mutex
 	cpu      cpuMeter
 	used     jobs.Resources
 	gpuBusy  map[string]bool
 	running  map[Running]context.CancelFunc
+	wake     chan struct{}
 	wg       sync.WaitGroup
 	draining bool
 }
@@ -106,25 +111,31 @@ func (a *Agent) Run(ctx context.Context, drain time.Duration) error {
 	runCtx, stopTasks := context.WithCancel(context.Background())
 	defer stopTasks()
 
+	a.wake = make(chan struct{}, 1)
 	t := time.NewTicker(a.Interval)
 	defer t.Stop()
 	for {
-		a.sync(ctx, runCtx)
+		got := a.sync(ctx, runCtx)
+		if got > 0 && a.Eager && ctx.Err() == nil {
+			continue // capacity may remain; ask again at once
+		}
 		select {
 		case <-ctx.Done():
 			return a.drain(runCtx, stopTasks, drain)
 		case <-t.C:
+		case <-a.wake:
 		}
 	}
 }
 
-func (a *Agent) sync(ctx, runCtx context.Context) {
+// sync heartbeats once and returns how many tasks it started.
+func (a *Agent) sync(ctx, runCtx context.Context) int {
 	res, err := a.Transport.Sync(ctx, a.state())
 	if err != nil {
 		if ctx.Err() == nil {
 			a.Log.Warn("sync failed", "err", err)
 		}
-		return
+		return 0
 	}
 	for _, c := range res.Cancel {
 		a.mu.Lock()
@@ -137,6 +148,7 @@ func (a *Agent) sync(ctx, runCtx context.Context) {
 	for _, task := range res.Tasks {
 		a.start(runCtx, task)
 	}
+	return len(res.Tasks)
 }
 
 func (a *Agent) state() State {
@@ -217,6 +229,12 @@ func (a *Agent) start(runCtx context.Context, task Task) {
 		a.mu.Lock()
 		delete(a.running, key)
 		a.mu.Unlock()
+		if a.Eager {
+			select { // capacity freed: heartbeat now rather than at the next tick
+			case a.wake <- struct{}{}:
+			default:
+			}
+		}
 	}()
 }
 

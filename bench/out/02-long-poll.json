@@ -1,0 +1,31 @@
+{
+  "name": "02-long-poll",
+  "jobs": 5000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 4,
+  "note": "heartbeat 500ms, long-poll 400ms",
+  "submit_seconds": 6.564136735,
+  "submit_jobs_per_sec": 761.7147847240876,
+  "wall_seconds": 25.067227,
+  "throughput_jobs_per_sec": 199.4636263516503,
+  "queue_latency_ms": {
+    "p50": 9283.1,
+    "p95": 17345.9,
+    "p99": 17890.8
+  },
+  "end_to_end_ms": {
+    "p50": 9762.8,
+    "p95": 17809.7,
+    "p99": 18354
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 5000,
+  "duplicate_results": 0,
+  "config": {
+    "HEARTBEAT_LONG_POLL": "400ms"
+  },
+  "at": "2026-11-13T20:57:33.790008381Z"
+}
