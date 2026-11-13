@@ -169,6 +169,22 @@ func docker(t *testing.T, method, path string, out any) {
 	}
 }
 
+// containerMaybe is container without failing when the service has no container.
+func containerMaybe(t *testing.T, service string) (id, state string) {
+	t.Helper()
+	f, _ := json.Marshal(map[string][]string{"label": {
+		"com.docker.compose.project=" + project, "com.docker.compose.service=" + service}})
+	var cs []struct {
+		ID    string `json:"Id"`
+		State string `json:"State"`
+	}
+	docker(t, "GET", "/containers/json?all=1&filters="+url.QueryEscape(string(f)), &cs)
+	if len(cs) == 0 {
+		return "", ""
+	}
+	return cs[0].ID, cs[0].State
+}
+
 // container returns the id and state of a compose service's container.
 func container(t *testing.T, service string) (id, state string) {
 	t.Helper()

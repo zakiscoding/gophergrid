@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 tag="${TAG:-dev}"
-for target in ${*:-scheduler worker ggctl ggbench tester}; do
+for target in ${*:-scheduler worker autoscaler ggctl ggbench tester}; do
   echo "building gophergrid/$target:$tag"
   tar -c --exclude=.git --exclude=bin --exclude=bench/out --exclude='*.test' -f - . |
     docker build -q --target "$target" -t "gophergrid/$target:$tag" -f Dockerfile - >/dev/null

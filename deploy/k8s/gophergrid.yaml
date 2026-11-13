@@ -1,0 +1,181 @@
+# GopherGrid on Kubernetes. See README.md in this folder.
+# The database password comes from a Secret you create (never committed):
+#   kubectl -n gophergrid create secret generic gophergrid-db --from-literal=password="$(openssl rand -hex 24)"
+apiVersion: v1
+kind: Service
+metadata: {name: postgres}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: postgres}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - {name: POSTGRES_USER, value: gophergrid}
+            - {name: POSTGRES_DB, value: gophergrid}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: gophergrid-db, key: password}}
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          ports: [{containerPort: 5432}]
+          readinessProbe:
+            exec: {command: [pg_isready, -U, gophergrid, -d, gophergrid]}
+            periodSeconds: 5
+          resources: {requests: {cpu: 250m, memory: 512Mi}, limits: {memory: 1Gi}}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 5Gi}}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: etcd}
+spec:
+  clusterIP: None   # headless: stable etcd-0.etcd peer name
+  selector: {app: etcd}
+  ports: [{name: client, port: 2379}, {name: peer, port: 2380}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: etcd}
+spec:
+  serviceName: etcd
+  replicas: 1   # a lab; production wants 3 members
+  selector: {matchLabels: {app: etcd}}
+  template:
+    metadata: {labels: {app: etcd}}
+    spec:
+      containers:
+        - name: etcd
+          image: quay.io/coreos/etcd:v3.6.6
+          command:
+            - etcd
+            - --name=etcd0
+            - --data-dir=/etcd-data
+            - --listen-client-urls=http://0.0.0.0:2379
+            - --advertise-client-urls=http://etcd:2379
+            - --listen-peer-urls=http://0.0.0.0:2380
+            - --initial-advertise-peer-urls=http://etcd-0.etcd:2380
+            - --initial-cluster=etcd0=http://etcd-0.etcd:2380
+          ports: [{containerPort: 2379}, {containerPort: 2380}]
+          resources: {requests: {cpu: 100m, memory: 128Mi}, limits: {memory: 512Mi}}
+          volumeMounts: [{name: data, mountPath: /etcd-data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec: {accessModes: [ReadWriteOnce], resources: {requests: {storage: 1Gi}}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: scheduler}
+spec:
+  selector: {app: scheduler}
+  ports: [{name: http, port: 8080}, {name: grpc, port: 9090}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: scheduler}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: scheduler}}
+  template:
+    metadata:
+      labels: {app: scheduler}
+      annotations: {prometheus.io/scrape: "true", prometheus.io/port: "8080"}
+    spec:
+      terminationGracePeriodSeconds: 15   # resigns leadership on SIGTERM
+      containers:
+        - name: scheduler
+          image: gophergrid/scheduler:dev
+          env:
+            - name: POD_IP
+              valueFrom: {fieldRef: {fieldPath: status.podIP}}
+            # Workers dial the pod IP, so a follower's redirect lands on the leader pod.
+            - {name: ADVERTISE_ADDR, value: "$(POD_IP):9090"}
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: gophergrid-db, key: password}}
+            - {name: DATABASE_URL, value: "postgres://gophergrid:$(PGPASSWORD)@postgres:5432/gophergrid?sslmode=disable"}
+            - {name: ETCD_ENDPOINTS, value: "etcd:2379"}
+          ports: [{containerPort: 8080}, {containerPort: 9090}]
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, periodSeconds: 5}
+          resources: {requests: {cpu: 250m, memory: 128Mi}, limits: {memory: 512Mi}}
+      affinity:
+        podAntiAffinity:   # keep the two schedulers on different nodes when possible
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm: {labelSelector: {matchLabels: {app: scheduler}}, topologyKey: kubernetes.io/hostname}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: worker}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: worker}}
+  template:
+    metadata:
+      labels: {app: worker}
+      annotations: {prometheus.io/scrape: "true", prometheus.io/port: "9100"}
+    spec:
+      terminationGracePeriodSeconds: 40   # DRAIN_TIMEOUT 30s plus margin
+      containers:
+        - name: worker
+          image: gophergrid/worker:dev
+          env:
+            - name: WORKER_ID
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            - {name: SCHEDULER_ADDRS, value: "scheduler:9090"}
+            - {name: GPU_MODE, value: none}
+            # Advertise what the pod may use, so placement matches the cgroup limits.
+            - {name: CPU_MILLIS, value: "2000"}
+            - {name: MEMORY_MB, value: "2048"}
+          resources: {requests: {cpu: "2", memory: 2Gi}, limits: {cpu: "2", memory: 2304Mi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: worker-gpu}
+spec:
+  replicas: 0   # scale up on clusters with the NVIDIA device plugin
+  selector: {matchLabels: {app: worker-gpu}}
+  template:
+    metadata: {labels: {app: worker-gpu}}
+    spec:
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: worker
+          image: gophergrid/worker:dev
+          env:
+            - name: WORKER_ID
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            - {name: SCHEDULER_ADDRS, value: "scheduler:9090"}
+            - {name: GPU_MODE, value: nvidia}   # GPU list from nvidia-smi
+            - {name: CPU_MILLIS, value: "4000"}
+            - {name: MEMORY_MB, value: "8192"}
+          resources:
+            requests: {cpu: "4", memory: 8Gi}
+            limits: {cpu: "4", memory: 9Gi, nvidia.com/gpu: 1}
+---
+# One CPU worker per 100 queued jobs, 1 to 20, from the leader's queue-depth gauge: the same
+# signal cmd/autoscaler uses with Compose. Needs KEDA and a Prometheus scraping the schedulers.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: {name: worker}
+spec:
+  scaleTargetRef: {name: worker}
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  cooldownPeriod: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus.monitoring.svc:9090
+        query: sum(gophergrid_queue_depth * on(instance) group_left gophergrid_is_leader)
+        threshold: "100"
