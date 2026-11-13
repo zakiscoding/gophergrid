@@ -1,0 +1,25 @@
+# The GPU PC: a worker that reports the real RTX 5070 from nvidia-smi. Runs in WSL2 on the
+# Windows boot (zakar) or on the Ubuntu boot (zak-gpu-node); both use WORKER_ID gpu-pc.
+#
+#   docker compose -p gophergrid -f deploy/homelab/gpu-pc.yml up -d
+name: gophergrid
+
+services:
+  gpu-worker:
+    image: gophergrid/worker:dev
+    restart: unless-stopped
+    environment:
+      WORKER_ID: gpu-pc
+      SCHEDULER_ADDRS: ${IMAC_TS_IP:-100.91.113.98}:9095,${LAPTOP_TS_IP:-100.73.132.95}:9095
+      GPU_MODE: nvidia
+      # vLLM keeps most of the card. Only memory.total minus this is offered to jobs.
+      GPU_RESERVED_MB: ${GPU_RESERVED_MB:-11300}
+      CPU_MILLIS: "8000"
+      MEMORY_MB: "8192"
+      ENABLE_CONTAINERS: "true"   # `container` jobs run with docker run --gpus device=<uuid>
+    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+    ports: ["127.0.0.1:9102:9100"]   # 9100 is the GPU node's node-exporter
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu, utility] }]

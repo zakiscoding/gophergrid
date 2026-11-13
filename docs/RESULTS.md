@@ -120,9 +120,9 @@ queue in 32 s, and was back to 0 extra workers 9 s later, each worker draining b
 
 ## Not tested
 
-- Real GPUs: `GPU_MODE=nvidia` and the `container` runner's `--gpus` path haven't run on
-  the RTX 5070 yet (see [homelab.md](homelab.md)).
 - The Kubernetes manifests on a live cluster (they pass `kubeconform -strict`).
 - Losing Postgres or etcd. Postgres is a single point of failure, and losing etcd stops
   elections but not the current leader's work until its session expires.
-- Multi-machine latency: workers and schedulers shared one host, so every network hop was local.
+- Multi-machine runs are in [homelab.md](homelab.md) (iMac, laptop and GPU PC over Tailscale,
+  including a real RTX 5070 job and a leader failover between machines). The numbers on this
+  page all come from one host.

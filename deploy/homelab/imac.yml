@@ -1,0 +1,58 @@
+# Control plane on mos-imac: Postgres, etcd and scheduler-1.
+#
+# Every port binds to 127.0.0.1 and is shared on the tailnet only with `tailscale serve`
+# (see docs/homelab.md), so nothing is reachable from the LAN. The password comes from .env next
+# to this file, which Git ignores.
+#
+#   docker-compose -p gophergrid --env-file deploy/homelab/.env -f deploy/homelab/imac.yml up -d
+name: gophergrid
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gophergrid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/homelab/.env}
+      POSTGRES_DB: gophergrid
+    ports: ["127.0.0.1:5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gophergrid -d gophergrid"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.6
+    restart: unless-stopped
+    command:
+      - etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://${IMAC_TS_IP:-100.91.113.98}:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+    ports: ["127.0.0.1:2379:2379"]
+    volumes: [etcddata:/etcd-data]
+
+  scheduler-1:
+    image: gophergrid/scheduler:dev
+    restart: unless-stopped   # `docker kill` still leaves it down, so failover tests work
+    depends_on:
+      postgres: { condition: service_healthy }
+      etcd: { condition: service_started }
+    environment:
+      DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD}@postgres:5432/gophergrid?sslmode=disable
+      ETCD_ENDPOINTS: etcd:2379
+      ADVERTISE_ADDR: ${IMAC_TS_IP:-100.91.113.98}:9095   # what workers dial over the tailnet
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-3s}
+    ports:
+      - "127.0.0.1:9095:9090"   # gRPC (9090 is the homelab Prometheus on this host)
+      - "127.0.0.1:8090:8080"   # REST and /metrics
+
+volumes:
+  pgdata:
+  etcddata:
