@@ -44,6 +44,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/jobs/{id}", s.get)
 	mux.HandleFunc("GET /v1/jobs", s.list)
 	mux.HandleFunc("GET /v1/stats", s.stats)
+	mux.HandleFunc("POST /v1/inference/batches", s.submitInference)
+	mux.HandleFunc("GET /v1/batches/{id}", s.getBatch)
 	if s.Extra != nil {
 		s.Extra(mux)
 	}

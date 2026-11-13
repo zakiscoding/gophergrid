@@ -59,6 +59,7 @@ func main() {
 		HeartbeatTimeout: config.Duration("HEARTBEAT_TIMEOUT", 3*time.Second),
 		TimeoutGrace:     config.Duration("TIMEOUT_GRACE", 5*time.Second),
 		Policy:           sched.Policy{KeepGPUNodesFree: config.Bool("KEEP_GPU_NODES_FREE", true)},
+		QueueOrder:       sched.QueueOrder(config.Duration("PRIORITY_AGING", time.Minute)),
 	}
 	cfg.Defaults()
 	hub := rpc.NewHub()

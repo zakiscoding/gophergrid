@@ -3,6 +3,7 @@ package sched
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -48,6 +49,16 @@ func (c *Config) Defaults() {
 	if c.QueueOrder == "" {
 		c.QueueOrder = "j.priority DESC, j.created_at"
 	}
+}
+
+// QueueOrder returns the queue scan order. With aging > 0 a job gains one priority point
+// per aging period it waits, so a steady stream of high-priority work can't starve
+// low-priority jobs forever. Zero disables aging and lets Postgres use the queue index.
+func QueueOrder(aging time.Duration) string {
+	if aging <= 0 {
+		return "j.priority DESC, j.created_at"
+	}
+	return fmt.Sprintf("(j.priority + extract(epoch FROM now() - j.created_at) / %f) DESC, j.created_at", aging.Seconds())
 }
 
 // Scheduler is the leader's work loop.
@@ -143,6 +154,7 @@ func (s *Scheduler) schedule(ctx context.Context, epoch int64) (int, error) {
 			for i, w := range workers {
 				nodes[i] = NewNode(w, usage[w.ID])
 			}
+			metrics.Unschedulable.Set(float64(countUnschedulable(queued, workers)))
 			return Place(queued, nodes, s.Config.Policy)
 		})
 	if err != nil {
@@ -221,4 +233,23 @@ func (s *Scheduler) gauges(ctx context.Context) {
 		metrics.WorkerUtilization.WithLabelValues(w.ID, "cpu_used").Set(w.CPUUtil)
 	}
 	metrics.WorkersAlive.Set(float64(alive))
+}
+
+// countUnschedulable counts jobs that wouldn't fit on any live worker even if it were
+// empty: they will wait until a bigger worker joins.
+func countUnschedulable(queued []jobs.Job, workers []store.Worker) int {
+	n := 0
+	for _, j := range queued {
+		fits := false
+		for _, w := range workers {
+			if _, ok := NewNode(w, store.Usage{}).fits(j); ok {
+				fits = true
+				break
+			}
+		}
+		if !fits {
+			n++
+		}
+	}
+	return n
 }

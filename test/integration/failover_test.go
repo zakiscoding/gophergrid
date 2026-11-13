@@ -139,10 +139,11 @@ func TestLeaderFailover(t *testing.T) {
 	waitWorkersAlive(t, 3)
 	ctx := context.Background()
 
-	const n = 300
+	// Enough work that plenty is still queued when the leader dies, whatever the worker count.
+	const n = 600
 	specs := make([]map[string]any, n)
 	for i := range specs {
-		specs[i] = map[string]any{"type": "sleep", "payload": map[string]any{"ms": 300},
+		specs[i] = map[string]any{"type": "sleep", "payload": map[string]any{"ms": 1000},
 			"resources": map[string]any{"cpu_millis": 250, "memory_mb": 32}}
 	}
 	submitBatch(t, specs)
@@ -155,26 +156,37 @@ func TestLeaderFailover(t *testing.T) {
 	old := leaderService(t)
 	kill(t, old)
 	killedAt := time.Now()
+	var queued int
+	must(t, pool.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE status = 'queued'`).Scan(&queued))
+	if queued < 50 {
+		t.Fatalf("only %d jobs still queued at the kill; the test needs more work", queued)
+	}
 	var newLeader string
 	waitFor(t, 30*time.Second, "a new leader", func() bool {
 		newLeader = leaderService(t)
 		return newLeader != old
 	})
-	elected := time.Since(killedAt)
+	// Measure from the leadership row the new leader wrote, not from this test's polling,
+	// which stalls on DNS lookups for the dead container.
 	var epoch int64
 	var holder string
-	must(t, pool.QueryRow(ctx, `SELECT epoch, holder FROM leadership`).Scan(&epoch, &holder))
-	t.Logf("%s killed; %s elected after %s (epoch %d, holder %s)", old, newLeader, elected.Round(100*time.Millisecond), epoch, holder)
+	var electedAt time.Time
+	must(t, pool.QueryRow(ctx, `SELECT epoch, holder, elected_at FROM leadership`).Scan(&epoch, &holder, &electedAt))
+	elected := electedAt.Sub(killedAt)
+	t.Logf("%s killed with %d jobs queued; %s elected after %s (epoch %d)", old, queued, newLeader,
+		elected.Round(100*time.Millisecond), epoch)
 
-	// Assignments resume under the new leader.
-	var before int
-	_ = pool.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE status = 'succeeded'`).Scan(&before)
-	waitFor(t, 30*time.Second, "progress under the new leader", func() bool {
-		var now int
-		_ = pool.QueryRow(ctx, `SELECT count(*) FROM jobs WHERE status = 'succeeded'`).Scan(&now)
-		return now > before+10
+	// The new leader assigns work again.
+	var firstAssign time.Time
+	waitFor(t, 30*time.Second, "an assignment by the new leader", func() bool {
+		var ts *time.Time
+		_ = pool.QueryRow(ctx, `SELECT min(started_at) FROM attempts WHERE started_at > $1`, killedAt).Scan(&ts)
+		if ts != nil {
+			firstAssign = *ts
+		}
+		return ts != nil
 	})
-	t.Logf("jobs completing again %s after the kill", time.Since(killedAt).Round(100*time.Millisecond))
+	t.Logf("first assignment by the new leader %s after the kill", firstAssign.Sub(killedAt).Round(100*time.Millisecond))
 
 	waitAllDone(t, pool, 3*time.Minute)
 	assertExactlyOnce(t, pool, n)

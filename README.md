@@ -4,9 +4,12 @@ A distributed compute scheduler in Go. Clients submit jobs over REST, a schedule
 them on workers by CPU, memory and GPU capacity, and when a worker dies its jobs are
 retried elsewhere without ever recording a result twice.
 
-**Status: phase 2 of 4.** Two scheduler instances elect a leader in etcd; workers talk to it
+**Status: phase 3 of 4.** Two scheduler instances elect a leader in etcd; workers talk to it
 over gRPC, heartbeat every 500 ms, and hold renewable leases on their jobs. Killing a worker
-or the leader mid-run loses no jobs and records no duplicate results.
+or the leader mid-run loses no jobs and records no duplicate results. Placement is GPU-aware
+(GPU count and memory, best fit), the queue is priority-ordered with aging, and batched
+inference fans out into GPU shards. GPUs are simulated in Docker; the same worker reads real
+ones from `nvidia-smi`.
 
 ## Run it
 
@@ -14,7 +17,7 @@ Needs only Docker.
 
 ```bash
 scripts/build.sh                                  # build images
-docker compose up -d                              # postgres, etcd, scheduler-1..2, worker-1..3
+docker compose up -d                              # postgres, etcd, 2 schedulers, 3 CPU + 2 sim-GPU workers
 docker compose --profile test run --rm tester     # store tests + integration tests
 scripts/go.sh test ./...                          # unit tests, Go in Docker
 ```

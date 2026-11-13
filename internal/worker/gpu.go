@@ -13,14 +13,15 @@ import (
 //   - "none": no GPUs
 //   - "sim": n fake GPUs with memMB each, for running GPU placement without hardware
 //   - "nvidia": real GPUs from nvidia-smi (needs the NVIDIA container toolkit in Docker)
-func DiscoverGPUs(ctx context.Context, mode string, n int, memMB int64, model string) ([]GPU, error) {
+func DiscoverGPUs(ctx context.Context, mode, workerID string, n int, memMB int64, model string) ([]GPU, error) {
 	switch mode {
 	case "", "none":
 		return nil, nil
 	case "sim":
 		gpus := make([]GPU, n)
 		for i := range gpus {
-			gpus[i] = GPU{ID: "sim-" + strconv.Itoa(i), Model: model, MemoryMB: memMB}
+			// Unique across workers, like real GPU UUIDs.
+			gpus[i] = GPU{ID: workerID + "-gpu" + strconv.Itoa(i), Model: model, MemoryMB: memMB}
 		}
 		return gpus, nil
 	case "nvidia":

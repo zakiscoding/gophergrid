@@ -18,6 +18,7 @@ x-scheduler: &scheduler
     HEARTBEAT_INTERVAL: 500ms
     HEARTBEAT_TIMEOUT: 3s
     LEASE_TTL: 10s
+    PRIORITY_AGING: 60s
     HEARTBEAT_LONG_POLL: ${HEARTBEAT_LONG_POLL:-0s}
 
 x-worker: &worker
@@ -81,6 +82,17 @@ services:
   worker-3:
     <<: *worker
     environment: { <<: *worker-env, WORKER_ID: worker-3 }
+
+  # Simulated GPU workers (GPU_MODE=sim): placement, GPU memory limits and inference
+  # fan-out run without hardware. On the real GPU node use GPU_MODE=nvidia (docs/homelab.md).
+  gpu-worker-1:      # like the homelab RTX 5070, twice
+    <<: *worker
+    environment: { <<: *worker-env, WORKER_ID: gpu-worker-1, CPU_MILLIS: "4000", MEMORY_MB: "8192",
+                   GPU_MODE: sim, SIM_GPUS: "2", SIM_GPU_MEMORY_MB: "12288", SIM_GPU_MODEL: sim-rtx-5070 }
+  gpu-worker-2:      # like one rented H100
+    <<: *worker
+    environment: { <<: *worker-env, WORKER_ID: gpu-worker-2, CPU_MILLIS: "4000", MEMORY_MB: "8192",
+                   GPU_MODE: sim, SIM_GPUS: "1", SIM_GPU_MEMORY_MB: "81920", SIM_GPU_MODEL: sim-h100-80gb }
 
   tester:
     profiles: [test]
