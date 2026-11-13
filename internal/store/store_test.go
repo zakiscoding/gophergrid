@@ -212,3 +212,62 @@ func TestIdempotencyKey(t *testing.T) {
 		t.Fatalf("replay: created=%v id=%s err=%v", created, b.ID, err)
 	}
 }
+
+func TestDeposedLeaderIsFencedOut(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	if _, err := s.Pool.Exec(ctx, `DELETE FROM leadership`); err != nil {
+		t.Fatal(err)
+	}
+	submit(t, s, jobs.Spec{Type: "sleep"})
+	if err := s.UpsertWorker(ctx, Worker{ID: "w1", CPUMillis: 1000, MemoryMB: 1000, JobTypes: []string{"sleep"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.TakeLeadership(ctx, 10, "old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.TakeLeadership(ctx, 20, "new"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.TakeLeadership(ctx, 15, "stale"); err != ErrNotLeader {
+		t.Fatalf("an older epoch took leadership back: %v", err)
+	}
+	placeAll := func(q []jobs.Job, _ map[string]Usage) []Assignment {
+		var out []Assignment
+		for _, j := range q {
+			out = append(out, Assignment{JobID: j.ID, WorkerID: "w1"})
+		}
+		return out
+	}
+	order := "j.priority DESC, j.created_at"
+	if _, err := s.ScheduleBatch(ctx, 10, 10, time.Second, order, placeAll); err != ErrNotLeader {
+		t.Fatalf("deposed leader assigned work: %v", err)
+	}
+	if _, err := s.ReapExpiredFenced(ctx, 10, time.Second); err != ErrNotLeader {
+		t.Fatalf("deposed leader reaped: %v", err)
+	}
+	if _, _, err := s.MarkDeadWorkers(ctx, 10, time.Second); err != ErrNotLeader {
+		t.Fatalf("deposed leader declared workers dead: %v", err)
+	}
+	got, err := s.ScheduleBatch(ctx, 20, 10, time.Second, order, placeAll)
+	if err != nil || len(got) != 1 || got[0].Attempt != 1 {
+		t.Fatalf("current leader: %+v %v", got, err)
+	}
+}
+
+func TestHeartbeatRenewsOnlyCurrentAttempts(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	j := submit(t, s, jobs.Spec{Type: "sleep"})
+	c, err := s.Claim(ctx, "w1", big, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := s.RenewLeases(ctx, "w1", []Held{{c.ID, 1}, {c.ID, 99}}, time.Minute)
+	if err != nil || n != 1 {
+		t.Fatalf("renewed %d (want 1): %v", n, err)
+	}
+	if n, _ := s.RenewLeases(ctx, "w2", []Held{{j.ID, 1}}, time.Minute); n != 0 {
+		t.Fatal("another worker renewed a lease it doesn't hold")
+	}
+}

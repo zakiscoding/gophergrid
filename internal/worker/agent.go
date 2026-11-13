@@ -42,8 +42,9 @@ type Running struct {
 type State struct {
 	Free     jobs.Resources
 	FreeGPUs []string
-	Running  []Running
+	Running  []Running // running, or finished and waiting for the scheduler to acknowledge
 	Draining bool
+	CPUUtil  float64 // measured process CPU over the last interval, as a fraction of capacity
 }
 
 // SyncResult is what the scheduler sends back.
@@ -79,6 +80,7 @@ type Agent struct {
 	Log       *slog.Logger
 
 	mu       sync.Mutex
+	cpu      cpuMeter
 	used     jobs.Resources
 	gpuBusy  map[string]bool
 	running  map[Running]context.CancelFunc
@@ -140,7 +142,7 @@ func (a *Agent) sync(ctx, runCtx context.Context) {
 func (a *Agent) state() State {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	st := State{Draining: a.draining}
+	st := State{Draining: a.draining, CPUUtil: a.cpu.sample(a.Info.Capacity.CPUMillis)}
 	st.Free = jobs.Resources{
 		CPUMillis: a.Info.Capacity.CPUMillis - a.used.CPUMillis,
 		MemoryMB:  a.Info.Capacity.MemoryMB - a.used.MemoryMB,
@@ -206,12 +208,15 @@ func (a *Agent) start(runCtx context.Context, task Task) {
 		for _, id := range task.GPUIDs {
 			delete(a.gpuBusy, id)
 		}
+		a.mu.Unlock()
+		// The attempt stays in a.running until the report is acknowledged, so heartbeats
+		// keep listing it and a new leader doesn't hand it out again in the meantime.
+		if !cancelled || res.Success {
+			a.report(res)
+		} // else: the scheduler took the attempt back; nothing to report
+		a.mu.Lock()
 		delete(a.running, key)
 		a.mu.Unlock()
-		if cancelled && !res.Success {
-			return // the scheduler took the attempt back; nothing to report
-		}
-		a.report(res)
 	}()
 }
 

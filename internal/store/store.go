@@ -116,7 +116,7 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 const jobColumns = `j.id, j.idempotency_key, j.type, j.payload, j.priority, j.cpu_millis, j.memory_mb,
 	j.gpus, j.gpu_memory_mb, j.timeout_ms, j.max_attempts, j.status, j.attempt, j.worker_id,
-	j.lease_expires_at, j.last_error, j.created_at, j.assigned_at, j.started_at, j.finished_at`
+	j.lease_expires_at, j.last_error, j.created_at, j.assigned_at, j.started_at, j.finished_at, j.gpu_ids`
 
 func scanJob(row pgx.Row, extra ...any) (jobs.Job, error) {
 	var j jobs.Job
@@ -124,7 +124,7 @@ func scanJob(row pgx.Row, extra ...any) (jobs.Job, error) {
 	dest := []any{&j.ID, &j.IdempotencyKey, &j.Type, &j.Payload, &j.Priority, &j.Resources.CPUMillis,
 		&j.Resources.MemoryMB, &j.Resources.GPUs, &j.Resources.GPUMemoryMB, &j.TimeoutMS, &j.MaxAttempts,
 		&status, &j.Attempt, &j.WorkerID, &j.LeaseExpiresAt, &j.LastError, &j.CreatedAt, &j.AssignedAt,
-		&j.StartedAt, &j.FinishedAt}
+		&j.StartedAt, &j.FinishedAt, &j.GPUIDs}
 	err := row.Scan(append(dest, extra...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return j, ErrNotFound
@@ -309,6 +309,7 @@ func (s *Store) Complete(ctx context.Context, c Completion) (Outcome, error) {
 		}
 		_, err = tx.Exec(ctx, `UPDATE jobs SET status = $2,
 				worker_id = CASE WHEN $3 THEN NULL ELSE worker_id END,
+				gpu_ids = CASE WHEN $3 THEN NULL ELSE gpu_ids END,
 				lease_expires_at = NULL, last_error = nullif($4, ''),
 				finished_at = CASE WHEN $3 THEN NULL ELSE now() END
 			WHERE id = $1`, c.JobID, string(out.NewStatus), out.Requeued, c.Error)
@@ -325,23 +326,7 @@ type Reaped struct{ Requeued, Failed int }
 // reports later, Complete rejects it as a stale attempt.
 func (s *Store) ReapExpired(ctx context.Context) (Reaped, error) {
 	var r Reaped
-	rows, err := s.Pool.Query(ctx, `
-		WITH expired AS (
-			SELECT id FROM jobs WHERE status = 'running' AND lease_expires_at < now()
-			FOR UPDATE SKIP LOCKED
-		), updated AS (
-			UPDATE jobs j SET
-				status = CASE WHEN j.attempt >= j.max_attempts THEN 'failed' ELSE 'queued' END,
-				finished_at = CASE WHEN j.attempt >= j.max_attempts THEN now() ELSE NULL END,
-				last_error = 'lease expired on worker ' || coalesce(j.worker_id, '?'),
-				worker_id = NULL, lease_expires_at = NULL
-			FROM expired WHERE j.id = expired.id
-			RETURNING j.id, j.attempt, j.status
-		), marked AS (
-			UPDATE attempts a SET ended_at = now(), outcome = 'lease_expired'
-			FROM updated u WHERE a.job_id = u.id AND a.attempt = u.attempt AND a.outcome IS NULL
-		)
-		SELECT status FROM updated`)
+	rows, err := s.Pool.Query(ctx, reapSQL(`lease_expires_at < now()`))
 	if err != nil {
 		return r, err
 	}
@@ -358,6 +343,28 @@ func (s *Store) ReapExpired(ctx context.Context) (Reaped, error) {
 		}
 	}
 	return r, rows.Err()
+}
+
+// reapSQL requeues (or fails, when out of attempts) running jobs matching cond, marks
+// their attempts lease_expired, and returns each job's new status.
+func reapSQL(cond string) string {
+	return `
+		WITH expired AS (
+			SELECT id FROM jobs WHERE status = 'running' AND (` + cond + `)
+			FOR UPDATE SKIP LOCKED
+		), updated AS (
+			UPDATE jobs j SET
+				status = CASE WHEN j.attempt >= j.max_attempts THEN 'failed' ELSE 'queued' END,
+				finished_at = CASE WHEN j.attempt >= j.max_attempts THEN now() ELSE NULL END,
+				last_error = 'lease expired on worker ' || coalesce(j.worker_id, '?'),
+				worker_id = NULL, lease_expires_at = NULL, gpu_ids = NULL
+			FROM expired WHERE j.id = expired.id
+			RETURNING j.id, j.attempt, j.status
+		), marked AS (
+			UPDATE attempts a SET ended_at = now(), outcome = 'lease_expired'
+			FROM updated u WHERE a.job_id = u.id AND a.attempt = u.attempt AND a.outcome IS NULL
+		)
+		SELECT status FROM updated`
 }
 
 // Stats is a snapshot of the queue.

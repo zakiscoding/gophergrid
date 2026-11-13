@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,9 +26,55 @@ import (
 )
 
 var (
-	baseURL = env("GOPHERGRID_URL", "http://scheduler:8080")
-	project = env("COMPOSE_PROJECT", "gophergrid")
+	schedulerURLs = strings.Split(env("SCHEDULER_URLS", "http://scheduler-1:8080,http://scheduler-2:8080"), ",")
+	project       = env("COMPOSE_PROJECT", "gophergrid")
 )
+
+// liveURL returns the first scheduler that answers /healthz. Any instance serves the REST API.
+func liveURL(t *testing.T) string {
+	t.Helper()
+	for _, u := range schedulerURLs {
+		resp, err := http.Get(u + "/healthz")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				return u
+			}
+		}
+	}
+	t.Fatal("no scheduler is answering")
+	return ""
+}
+
+type leaderInfo struct {
+	Leader   string `json:"leader"`
+	Self     string `json:"self"`
+	IsLeader bool   `json:"is_leader"`
+}
+
+// leaderService returns the compose service name of the current leader ("scheduler-1").
+func leaderService(t *testing.T) string {
+	t.Helper()
+	var service string
+	waitFor(t, 30*time.Second, "a leader", func() bool {
+		for _, u := range schedulerURLs {
+			var li leaderInfo
+			req, _ := http.NewRequest("GET", u+"/v1/leader", nil)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				continue
+			}
+			_ = json.NewDecoder(resp.Body).Decode(&li)
+			resp.Body.Close()
+			if li.IsLeader {
+				service = strings.Split(li.Self, ":")[0]
+				return true
+			}
+		}
+		return false
+	})
+	return service
+}
 
 func env(k, def string) string {
 	if v := os.Getenv(k); v != "" {
@@ -67,7 +114,7 @@ func api(t *testing.T, method, path string, body, out any, hdr ...string) int {
 		b, _ := json.Marshal(body)
 		r = bytes.NewReader(b)
 	}
-	req, _ := http.NewRequest(method, baseURL+path, r)
+	req, _ := http.NewRequest(method, liveURL(t)+path, r)
 	req.Header.Set("Content-Type", "application/json")
 	for i := 0; i+1 < len(hdr); i += 2 {
 		req.Header.Set(hdr[i], hdr[i+1])
@@ -144,9 +191,25 @@ func kill(t *testing.T, service string) {
 	t.Logf("killed %s", service)
 }
 
+func pause(t *testing.T, service string) {
+	id, _ := container(t, service)
+	docker(t, "POST", "/containers/"+id+"/pause", nil)
+	t.Logf("paused %s", service)
+}
+
+func unpause(t *testing.T, service string) {
+	id, state := container(t, service)
+	if state == "paused" {
+		docker(t, "POST", "/containers/"+id+"/unpause", nil)
+		t.Logf("unpaused %s", service)
+	}
+}
+
 func start(t *testing.T, service string) {
 	id, state := container(t, service)
-	if state != "running" {
+	if state == "paused" {
+		docker(t, "POST", "/containers/"+id+"/unpause", nil)
+	} else if state != "running" {
 		docker(t, "POST", "/containers/"+id+"/start", nil)
 		t.Logf("started %s", service)
 	}
@@ -164,3 +227,24 @@ func ensureRunning(t *testing.T, services ...string) {
 }
 
 func fmtCounts(m map[string]int) string { return fmt.Sprint(m) }
+
+// waitWorkersAlive waits until n workers are heartbeating.
+func waitWorkersAlive(t *testing.T, n int) {
+	t.Helper()
+	waitFor(t, 60*time.Second, fmt.Sprintf("%d live workers", n), func() bool {
+		var resp struct {
+			Workers []struct {
+				State         string    `json:"state"`
+				LastHeartbeat time.Time `json:"last_heartbeat"`
+			} `json:"workers"`
+		}
+		api(t, "GET", "/v1/workers", nil, &resp)
+		alive := 0
+		for _, w := range resp.Workers {
+			if w.State == "alive" && time.Since(w.LastHeartbeat) < 2*time.Second {
+				alive++
+			}
+		}
+		return alive >= n
+	})
+}
