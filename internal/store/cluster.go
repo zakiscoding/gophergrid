@@ -137,8 +137,15 @@ func (s *Store) MarkDeadWorkers(ctx context.Context, epoch int64, timeout time.D
 			return err
 		}
 		dead, err = pgx.CollectRows(rows, pgx.RowTo[string])
-		if err != nil || len(dead) == 0 {
+		if err != nil {
 			return err
+		}
+		// Forget workers that have been gone for an hour (autoscaled and drained, or retired).
+		if _, err := tx.Exec(ctx, `DELETE FROM workers WHERE state = 'dead' AND last_heartbeat < now() - interval '1 hour'`); err != nil {
+			return err
+		}
+		if len(dead) == 0 {
+			return nil
 		}
 		tag, err := tx.Exec(ctx, `UPDATE jobs SET lease_expires_at = now() - interval '1 millisecond'
 			WHERE status = 'running' AND worker_id = ANY($1)`, dead)
