@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+// The worker protocol. Workers call the leader scheduler; there are no calls the other way,
+// so workers can sit behind NAT (a homelab node on Tailscale, a pod in Kubernetes).
+//
+// The heartbeat carries everything: the worker reports what it is running and what it has
+// free, and the leader answers with new assignments and attempts to cancel. Reporting a
+// running attempt renews its lease. A worker that stops heartbeating loses its leases, and
+// its jobs are retried elsewhere.
+package gophergrid.v1;
+
+option go_package = "github.com/zakiscoding/gophergrid/gen/gophergridv1;gophergridv1";
+
+service WorkerService {
+  // Register announces a worker and its capacity. Idempotent; workers call it again after a
+  // leader change or when the leader answers NOT_FOUND.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Heartbeat renews leases and delivers assignments. Only the leader answers; followers
+  // return FAILED_PRECONDITION with the leader's address in the "gophergrid-leader" trailer.
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // CompleteJob reports one attempt. Any scheduler instance accepts it: the attempt number
+  // is a fencing token, so a stale report is rejected no matter who receives it.
+  rpc CompleteJob(CompleteJobRequest) returns (CompleteJobResponse);
+}
+
+message Gpu {
+  string id = 1;        // nvidia-smi UUID, or sim-N
+  string model = 2;
+  int64 memory_mb = 3;
+}
+
+message Resources {
+  int64 cpu_millis = 1;
+  int64 memory_mb = 2;
+  int32 gpus = 3;
+  int64 gpu_memory_mb = 4;  // per GPU
+}
+
+message RegisterRequest {
+  string worker_id = 1;
+  string hostname = 2;
+  Resources capacity = 3;   // cpu and memory; GPUs come from gpu_list
+  repeated Gpu gpu_list = 4;
+  string gpu_mode = 5;      // none, sim, nvidia
+  repeated string job_types = 6;
+}
+
+message RegisterResponse {
+  int64 heartbeat_interval_ms = 1;
+  int64 lease_ttl_ms = 2;
+}
+
+message Attempt {
+  string job_id = 1;
+  int32 attempt = 2;
+}
+
+message HeartbeatRequest {
+  string worker_id = 1;
+  // Attempts the worker holds: running, or finished but not yet acknowledged by CompleteJob.
+  repeated Attempt running = 2;
+  Resources free = 3;
+  repeated string free_gpu_ids = 4;
+  bool draining = 5;        // finishing current work, wants nothing new
+  double cpu_utilization = 6;  // 0..1, for load-balancing metrics
+}
+
+message Assignment {
+  string job_id = 1;
+  int32 attempt = 2;
+  string type = 3;
+  bytes payload = 4;        // JSON
+  Resources resources = 5;
+  int64 timeout_ms = 6;
+  repeated string gpu_ids = 7;
+}
+
+message HeartbeatResponse {
+  repeated Assignment assignments = 1;
+  repeated Attempt cancel = 2;   // attempts the worker must stop: no longer current
+}
+
+message CompleteJobRequest {
+  string worker_id = 1;
+  string job_id = 2;
+  int32 attempt = 3;
+  bool success = 4;
+  bool permanent = 5;       // retrying won't help
+  bytes output = 6;         // JSON
+  string error = 7;
+  int64 duration_ms = 8;
+}
+
+message CompleteJobResponse {
+  bool accepted = 1;
+  string reason = 2;        // why it was rejected
+}

@@ -1,16 +1,33 @@
 # GopherGrid local stack. Ports bind to 127.0.0.1 only.
 #   scripts/build.sh && docker compose up -d             # build images, run it
-#   docker compose --profile test run --rm tester        # integration tests (kills workers)
+#   docker compose --profile test run --rm tester        # integration tests (kill workers and the leader)
 # POSTGRES_PASSWORD defaults to a local-dev value; set it in .env (gitignored) for anything else.
 name: gophergrid
 
+x-scheduler: &scheduler
+  build: { context: ., target: scheduler }   # scripts/build.sh builds the same images
+  image: gophergrid/scheduler:dev
+  restart: "no"            # a killed instance stays dead, so failover tests mean something
+  depends_on:
+    postgres: { condition: service_healthy }
+    etcd: { condition: service_started }
+  environment: &scheduler-env
+    DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid?sslmode=disable
+    ETCD_ENDPOINTS: etcd:2379
+    ELECTION_TTL_SECONDS: "5"
+    HEARTBEAT_INTERVAL: 500ms
+    HEARTBEAT_TIMEOUT: 3s
+    LEASE_TTL: 10s
+    HEARTBEAT_LONG_POLL: ${HEARTBEAT_LONG_POLL:-0s}
+
 x-worker: &worker
-  build: { context: ., target: worker }   # scripts/build.sh builds the same images
+  build: { context: ., target: worker }
   image: gophergrid/worker:dev
-  restart: "no"            # a killed worker stays dead, so failure tests mean something
-  depends_on: [scheduler]
+  restart: "no"
+  depends_on: [scheduler-1, scheduler-2]
   environment: &worker-env
-    SCHEDULER_URL: http://scheduler:8080
+    SCHEDULER_ADDRS: scheduler-1:9090,scheduler-2:9090
+    HEARTBEAT_INTERVAL: 500ms
     CPU_MILLIS: "2000"
     MEMORY_MB: "2048"
     GPU_MODE: none
@@ -33,15 +50,27 @@ services:
       timeout: 3s
       retries: 30
 
-  scheduler:
-    build: { context: ., target: scheduler }
-    image: gophergrid/scheduler:dev
-    depends_on:
-      postgres: { condition: service_healthy }
-    environment:
-      DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid?sslmode=disable
-      HTTP_ADDR: ":8080"
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.6
+    command:
+      - etcd
+      - --name=etcd0
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=etcd0=http://etcd:2380
+    volumes: [etcddata:/etcd-data]
+
+  scheduler-1:
+    <<: *scheduler
+    environment: { <<: *scheduler-env, ADVERTISE_ADDR: "scheduler-1:9090" }
     ports: ["127.0.0.1:8080:8080"]
+  scheduler-2:
+    <<: *scheduler
+    environment: { <<: *scheduler-env, ADVERTISE_ADDR: "scheduler-2:9090" }
+    ports: ["127.0.0.1:8081:8080"]
 
   worker-1:
     <<: *worker
@@ -57,9 +86,9 @@ services:
     profiles: [test]
     build: { context: ., target: tester }
     image: gophergrid/tester:dev
-    depends_on: [scheduler]
+    depends_on: [scheduler-1, scheduler-2]
     environment:
-      GOPHERGRID_URL: http://scheduler:8080
+      SCHEDULER_URLS: http://scheduler-1:8080,http://scheduler-2:8080
       DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid?sslmode=disable
       TEST_DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid_test?sslmode=disable
       COMPOSE_PROJECT: gophergrid
@@ -68,3 +97,4 @@ services:
 
 volumes:
   pgdata:
+  etcddata:

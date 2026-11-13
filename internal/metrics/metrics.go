@@ -54,3 +54,48 @@ var (
 		Name: "gophergrid_running_jobs", Help: "Jobs currently running.",
 	})
 )
+
+var (
+	// IsLeader is 1 on the scheduler instance that currently leads.
+	IsLeader = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "gophergrid_is_leader", Help: "1 if this scheduler instance is the leader.",
+	})
+
+	// WorkersAlive is workers heartbeating (alive or draining).
+	WorkersAlive = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "gophergrid_workers_alive", Help: "Workers that are heartbeating.",
+	})
+
+	// DeadWorkers counts workers declared dead after missing heartbeats.
+	DeadWorkers = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "gophergrid_dead_workers_total", Help: "Workers declared dead after missing heartbeats.",
+	})
+
+	// WorkerUtilization is per-worker utilization: reserved CPU and memory (by assigned jobs)
+	// and measured CPU use, each 0..1.
+	WorkerUtilization = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "gophergrid_worker_utilization", Help: "Per-worker utilization, 0..1, by resource.",
+	}, []string{"worker", "resource"})
+
+	// Heartbeats counts heartbeats handled by the leader.
+	Heartbeats = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "gophergrid_heartbeats_total", Help: "Heartbeats handled by the leader.",
+	})
+
+	// Assignments counts job attempts assigned to workers.
+	Assignments = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "gophergrid_assignments_total", Help: "Job attempts assigned to workers.",
+	})
+
+	// SchedulingPass is the duration of a scheduling pass that assigned work.
+	SchedulingPass = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name: "gophergrid_scheduling_pass_seconds", Help: "Duration of scheduling passes that assigned work.",
+		Buckets: prometheus.ExponentialBuckets(0.0005, 2, 14),
+	})
+
+	// AssignToStart is time from assignment to the worker receiving it.
+	AssignToStart = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name: "gophergrid_assignment_delivery_seconds", Help: "Assignment commit to delivery in a heartbeat response.",
+		Buckets: prometheus.ExponentialBuckets(0.001, 2, 14),
+	})
+)

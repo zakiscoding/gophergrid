@@ -40,11 +40,12 @@ func main() {
 		info.Types = append(info.Types, t)
 	}
 
-	transport := &worker.HTTPTransport{
-		BaseURL:  config.String("SCHEDULER_URL", "http://localhost:8080"),
+	transport := &worker.GRPCTransport{
+		Addrs:    config.List("SCHEDULER_ADDRS", "localhost:9090"),
 		WorkerID: id,
-		Client:   &http.Client{Timeout: 10 * time.Second},
+		Timeout:  config.Duration("RPC_TIMEOUT", 5*time.Second),
 	}
+	defer transport.Close()
 
 	go func() {
 		mux := http.NewServeMux()
@@ -57,7 +58,7 @@ func main() {
 	}()
 
 	agent := &worker.Agent{Info: info, Transport: transport, Runners: runners,
-		Interval: config.Duration("POLL_INTERVAL", 250*time.Millisecond), Log: log}
+		Interval: config.Duration("HEARTBEAT_INTERVAL", 500*time.Millisecond), Log: log}
 	if err := agent.Run(ctx, config.Duration("DRAIN_TIMEOUT", 30*time.Second)); err != nil {
 		log.Error("worker stopped", "err", err)
 		os.Exit(1)
