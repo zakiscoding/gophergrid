@@ -1,0 +1,7 @@
+.git
+bin
+bench/out
+*.test
+*.out
+.env
+docs

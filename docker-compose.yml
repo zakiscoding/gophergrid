@@ -1,0 +1,70 @@
+# GopherGrid local stack. Ports bind to 127.0.0.1 only.
+#   scripts/build.sh && docker compose up -d             # build images, run it
+#   docker compose --profile test run --rm tester        # integration tests (kills workers)
+# POSTGRES_PASSWORD defaults to a local-dev value; set it in .env (gitignored) for anything else.
+name: gophergrid
+
+x-worker: &worker
+  build: { context: ., target: worker }   # scripts/build.sh builds the same images
+  image: gophergrid/worker:dev
+  restart: "no"            # a killed worker stays dead, so failure tests mean something
+  depends_on: [scheduler]
+  environment: &worker-env
+    SCHEDULER_URL: http://scheduler:8080
+    CPU_MILLIS: "2000"
+    MEMORY_MB: "2048"
+    GPU_MODE: none
+    LOG_LEVEL: info
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gophergrid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gophergrid}
+      POSTGRES_DB: gophergrid
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gophergrid -d gophergrid"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  scheduler:
+    build: { context: ., target: scheduler }
+    image: gophergrid/scheduler:dev
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid?sslmode=disable
+      HTTP_ADDR: ":8080"
+    ports: ["127.0.0.1:8080:8080"]
+
+  worker-1:
+    <<: *worker
+    environment: { <<: *worker-env, WORKER_ID: worker-1 }
+  worker-2:
+    <<: *worker
+    environment: { <<: *worker-env, WORKER_ID: worker-2 }
+  worker-3:
+    <<: *worker
+    environment: { <<: *worker-env, WORKER_ID: worker-3 }
+
+  tester:
+    profiles: [test]
+    build: { context: ., target: tester }
+    image: gophergrid/tester:dev
+    depends_on: [scheduler]
+    environment:
+      GOPHERGRID_URL: http://scheduler:8080
+      DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid?sslmode=disable
+      TEST_DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid_test?sslmode=disable
+      COMPOSE_PROJECT: gophergrid
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  pgdata:
