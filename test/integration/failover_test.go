@@ -153,6 +153,8 @@ func TestLeaderFailover(t *testing.T) {
 		return done >= 20
 	})
 
+	var deadBefore int
+	must(t, pool.QueryRow(ctx, `SELECT count(*) FROM workers WHERE state = 'dead'`).Scan(&deadBefore))
 	old := leaderService(t)
 	kill(t, old)
 	killedAt := time.Now()
@@ -190,10 +192,11 @@ func TestLeaderFailover(t *testing.T) {
 
 	waitAllDone(t, pool, 3*time.Minute)
 	assertExactlyOnce(t, pool, n)
-	var deadWorkers int
-	must(t, pool.QueryRow(ctx, `SELECT count(*) FROM workers WHERE state = 'dead'`).Scan(&deadWorkers))
-	if deadWorkers != 0 {
-		t.Errorf("%d workers were declared dead during a scheduler failover", deadWorkers)
+	// Only workers that died during this test count; earlier tests leave dead rows behind.
+	var deadAfter int
+	must(t, pool.QueryRow(ctx, `SELECT count(*) FROM workers WHERE state = 'dead'`).Scan(&deadAfter))
+	if deadAfter != deadBefore {
+		t.Errorf("%d workers were declared dead during a scheduler failover", deadAfter-deadBefore)
 	}
 }
 

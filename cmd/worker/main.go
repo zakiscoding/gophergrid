@@ -31,6 +31,13 @@ func main() {
 		log.Error("gpu discovery", "err", err)
 		os.Exit(1)
 	}
+	// Memory other processes hold on each GPU (e.g. a vLLM server sharing the card) is not
+	// offered to jobs.
+	if reserved := config.Int("GPU_RESERVED_MB", 0); reserved > 0 {
+		for i := range gpus {
+			gpus[i].MemoryMB = max(0, gpus[i].MemoryMB-reserved)
+		}
+	}
 	info := worker.Info{
 		ID: id, Hostname: host, GPUList: gpus, GPUMode: gpuMode,
 		Capacity: jobs.Resources{CPUMillis: config.Int("CPU_MILLIS", 2000), MemoryMB: config.Int("MEMORY_MB", 2048)},
