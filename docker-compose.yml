@@ -95,6 +95,41 @@ services:
     environment: { <<: *worker-env, WORKER_ID: gpu-worker-2, CPU_MILLIS: "4000", MEMORY_MB: "8192",
                    GPU_MODE: sim, SIM_GPUS: "1", SIM_GPU_MEMORY_MB: "81920", SIM_GPU_MODEL: sim-h100-80gb }
 
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.retention.time=2d]
+    volumes: [./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ["127.0.0.1:9090:9090"]
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"      # local, view-only dashboards
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/gophergrid.json
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [prometheus]
+
+  # docker compose --profile autoscale up -d autoscaler
+  autoscaler:
+    profiles: [autoscale]
+    build: { context: ., target: autoscaler }
+    image: gophergrid/autoscaler:dev
+    depends_on: [scheduler-1, scheduler-2]
+    environment:
+      SCHEDULER_URLS: http://scheduler-1:8080,http://scheduler-2:8080
+      TEMPLATE_CONTAINER: gophergrid-worker-1-1
+      MIN_WORKERS: "0"
+      MAX_WORKERS: "4"
+      TARGET_QUEUE_PER_WORKER: "100"
+      COOLDOWN: ${AUTOSCALE_COOLDOWN:-30s}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
   tester:
     profiles: [test]
     build: { context: ., target: tester }

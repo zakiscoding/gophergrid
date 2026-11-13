@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: gophergrid
+    folder: GopherGrid
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

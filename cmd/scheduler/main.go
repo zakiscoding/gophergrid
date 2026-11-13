@@ -128,6 +128,16 @@ func main() {
 			}
 			api.WriteJSON(w, http.StatusOK, map[string]any{"workers": ws})
 		})
+		// Queue pressure for autoscalers (cmd/autoscaler, KEDA uses the Prometheus gauges).
+		mux.HandleFunc("GET /v1/autoscale", func(w http.ResponseWriter, r *http.Request) {
+			var queued, running int
+			if err := st.Pool.QueryRow(r.Context(), `SELECT count(*) FILTER (WHERE status = 'queued'),
+				count(*) FILTER (WHERE status = 'running') FROM jobs WHERE status IN ('queued', 'running')`).Scan(&queued, &running); err != nil {
+				api.WriteJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+				return
+			}
+			api.WriteJSON(w, http.StatusOK, map[string]int{"queued": queued, "running": running})
+		})
 		mux.HandleFunc("GET /v1/leader", func(w http.ResponseWriter, r *http.Request) {
 			api.WriteJSON(w, http.StatusOK, map[string]any{"leader": leaderAddr(), "self": advertise, "is_leader": lead.IsLeader()})
 		})
