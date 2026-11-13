@@ -1,0 +1,28 @@
+{
+  "name": "homelab-02-control",
+  "jobs": 3000,
+  "job_type": "sleep",
+  "job_ms": 200,
+  "cpu_millis": 250,
+  "workers": 2,
+  "note": "homelab control, no kills",
+  "submit_seconds": 0.478999237,
+  "submit_jobs_per_sec": 6263.057993138306,
+  "wall_seconds": 16.584356,
+  "throughput_jobs_per_sec": 180.89336721908285,
+  "queue_latency_ms": {
+    "p50": 8308.9,
+    "p95": 15448.1,
+    "p99": 15947.6
+  },
+  "end_to_end_ms": {
+    "p50": 8549.6,
+    "p95": 15670,
+    "p99": 16173.1
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 3000,
+  "duplicate_results": 0,
+  "at": "2026-11-13T23:29:48.151340423Z"
+}

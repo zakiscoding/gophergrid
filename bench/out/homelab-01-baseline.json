@@ -1,0 +1,28 @@
+{
+  "name": "homelab-01-baseline",
+  "jobs": 2000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 2,
+  "note": "homelab: iMac leader, laptop + GPU PC workers over Tailscale",
+  "submit_seconds": 0.120274223,
+  "submit_jobs_per_sec": 16628.666975466556,
+  "wall_seconds": 1.234186,
+  "throughput_jobs_per_sec": 1620.5012858677703,
+  "queue_latency_ms": {
+    "p50": 567.3,
+    "p95": 1108.7,
+    "p99": 1162.9
+  },
+  "end_to_end_ms": {
+    "p50": 628.4,
+    "p95": 1170.5,
+    "p99": 1215.1
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 2000,
+  "duplicate_results": 0,
+  "at": "2026-11-13T23:29:07.469449649Z"
+}

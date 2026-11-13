@@ -12,7 +12,7 @@ retried elsewhere, and every job still records exactly one result.
 ## Headline numbers
 
 Measured on one laptop (i3-1215U, Docker Desktop on WSL2): 2 schedulers, 5 workers, all in
-Docker. Each number links to the JSON or test that produced it. Details: [docs/RESULTS.md](docs/RESULTS.md).
+Docker, then on the homelab (iMac, laptop and GPU PC over Tailscale). Each number links to the JSON or test that produced it. Details: [docs/RESULTS.md](docs/RESULTS.md).
 
 | What | Result |
 |---|---|
@@ -25,6 +25,7 @@ Docker. Each number links to the JSON or test that produced it. Details: [docs/R
 | REST submit, k6 at 500 req/s for 30 s | 497 req/s, p95 **43 ms**, 0 errors; all 14,978 jobs ran exactly once |
 | Batch submit | **28,083 jobs/s** (one `INSERT … SELECT FROM unnest`) |
 | Inference fan-out, 2,048 prompts → 32 GPU shards | Spread over all 3 simulated GPUs, **no GPU ever double-booked** (checked per attempt) |
+| **Homelab, 3 machines over Tailscale** ([details](docs/homelab.md)) | Leader killed on the iMac → laptop scheduler took over in **4.5 s**, 0 duplicates; real RTX 5070 job at 41.4 TFLOPS fp16 next to live vLLM; 1,620 jobs/s |
 | Autoscaler, 1,500-job burst | +2 workers in 1.8 s, peak +4, back to 0 within 9 s of the queue draining |
 
 ## Architecture
@@ -118,8 +119,8 @@ AUTOSCALE_COOLDOWN=10s docker compose --profile autoscale up -d autoscaler
 On a machine where OneDrive syncs the repo, `docker compose build` fails with "invalid file
 request"; `scripts/build.sh` streams the source to Docker as a tar archive instead.
 
-Running workers on other machines (the homelab GPU node over Tailscale, real GPUs with
-`GPU_MODE=nvidia`): [docs/homelab.md](docs/homelab.md). Kubernetes: [deploy/k8s](deploy/k8s).
+Running across machines (the homelab: iMac control plane, laptop, GPU PC with real GPUs via
+`GPU_MODE=nvidia`): [docs/homelab.md](docs/homelab.md) and [`deploy/homelab`](deploy/homelab). Kubernetes: [deploy/k8s](deploy/k8s).
 
 ## Performance work
 
@@ -151,10 +152,10 @@ timestamps from Postgres rather than client clocks. Raw results: [`bench/out/`](
 
 ## Limits
 
-- Everything ran on one laptop. Throughput numbers measure the scheduler's overhead with
-  zero-length jobs, not a cluster's compute.
-- GPUs are simulated in all tests. The `nvidia` mode and the container runner's `--gpus` path
-  are written and unit-tested (parsing), but not yet run on the RTX 5070.
+- Throughput numbers measure the scheduler's overhead with zero-length jobs, not a cluster's
+  compute. The homelab runs have 2 workers, the laptop runs 5, all on a handful of machines.
+- GPUs are simulated in the automated tests. The real RTX 5070 path (`GPU_MODE=nvidia`,
+  `docker run --gpus device=<uuid>`) has run on the homelab, by hand.
 - One Postgres is a single point of failure; scheduler failover doesn't cover it.
 - The Kubernetes manifests pass `kubeconform -strict` but haven't run on a cluster.
 - Built-in job types run in the worker process, so their CPU and memory limits are enforced by

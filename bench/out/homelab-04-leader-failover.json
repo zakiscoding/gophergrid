@@ -1,0 +1,28 @@
+{
+  "name": "homelab-04-leader-failover",
+  "jobs": 600,
+  "job_type": "sleep",
+  "job_ms": 1000,
+  "cpu_millis": 250,
+  "workers": 2,
+  "note": "homelab: SIGKILL scheduler-1 (leader, iMac) ~4s in; scheduler-2 on the laptop takes over",
+  "submit_seconds": 0.082627091,
+  "submit_jobs_per_sec": 7261.540890989373,
+  "wall_seconds": 22.082597,
+  "throughput_jobs_per_sec": 27.1707172847469,
+  "queue_latency_ms": {
+    "p50": 10538.3,
+    "p95": 19156.8,
+    "p99": 20697
+  },
+  "end_to_end_ms": {
+    "p50": 12350.5,
+    "p95": 20616.6,
+    "p99": 21968.4
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 600,
+  "duplicate_results": 0,
+  "at": "2026-11-13T23:30:53.24727791Z"
+}

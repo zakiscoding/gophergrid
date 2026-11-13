@@ -1,0 +1,30 @@
+# hp-laptop: scheduler-2 (a second scheduler on another machine) and a CPU worker.
+# Both reach Postgres and etcd on mos-imac over the tailnet.
+#
+#   docker compose -p gophergrid-homelab --env-file deploy/homelab/.env -f deploy/homelab/laptop.yml up -d
+name: gophergrid-homelab
+
+services:
+  scheduler-2:
+    image: gophergrid/scheduler:dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/homelab/.env}@${IMAC_TS_IP:-100.91.113.98}:5433/gophergrid?sslmode=disable
+      ETCD_ENDPOINTS: ${IMAC_TS_IP:-100.91.113.98}:2379
+      ADVERTISE_ADDR: ${LAPTOP_TS_IP:-100.73.132.95}:9095
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-3s}
+    ports:
+      - "127.0.0.1:9095:9090"
+      - "127.0.0.1:8091:8080"   # 8080/8081 belong to the single-machine dev stack
+
+  worker:
+    image: gophergrid/worker:dev
+    restart: unless-stopped
+    depends_on: [scheduler-2]
+    environment:
+      WORKER_ID: hp-laptop
+      SCHEDULER_ADDRS: ${IMAC_TS_IP:-100.91.113.98}:9095,${LAPTOP_TS_IP:-100.73.132.95}:9095
+      GPU_MODE: none
+      CPU_MILLIS: "4000"
+      MEMORY_MB: "4096"
+    ports: ["127.0.0.1:9101:9100"]

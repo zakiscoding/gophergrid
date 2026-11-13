@@ -203,8 +203,9 @@ func runInferenceSim(ctx context.Context, t Task) (json.RawMessage, error) {
 func containerRunner(gpuMode string) Runner {
 	return func(ctx context.Context, t Task) (json.RawMessage, error) {
 		var p struct {
-			Image string   `json:"image"`
-			Cmd   []string `json:"cmd"`
+			Image      string   `json:"image"`
+			Entrypoint string   `json:"entrypoint"` // optional, overrides the image's
+			Cmd        []string `json:"cmd"`
 		}
 		if err := decode(t, &p); err != nil {
 			return nil, err
@@ -220,6 +221,9 @@ func containerRunner(gpuMode string) Runner {
 		}
 		if len(t.GPUIDs) > 0 && gpuMode == "nvidia" {
 			args = append(args, "--gpus", `"device=`+strings.Join(t.GPUIDs, ",")+`"`)
+		}
+		if p.Entrypoint != "" {
+			args = append(args, "--entrypoint", p.Entrypoint)
 		}
 		args = append(args, p.Image)
 		args = append(args, p.Cmd...)

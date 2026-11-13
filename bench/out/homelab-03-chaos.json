@@ -1,0 +1,35 @@
+{
+  "name": "homelab-03-chaos",
+  "jobs": 3000,
+  "job_type": "sleep",
+  "job_ms": 200,
+  "cpu_millis": 250,
+  "workers": 2,
+  "note": "homelab: SIGKILL the laptop worker every 4s, back after 6s",
+  "submit_seconds": 0.212244446,
+  "submit_jobs_per_sec": 14134.645483255661,
+  "wall_seconds": 23.107377,
+  "throughput_jobs_per_sec": 129.82866900038027,
+  "queue_latency_ms": {
+    "p50": 10499.4,
+    "p95": 19362.9,
+    "p99": 19862.8
+  },
+  "end_to_end_ms": {
+    "p50": 10731.3,
+    "p95": 19586,
+    "p99": 20337.1
+  },
+  "retried_jobs": 16,
+  "failed_jobs": 0,
+  "results": 3000,
+  "duplicate_results": 0,
+  "kills": [
+    "worker@23:29:54.301",
+    "worker@23:29:57.869",
+    "worker@23:30:02.346",
+    "worker@23:30:06.321",
+    "worker@23:30:10.255"
+  ],
+  "at": "2026-11-13T23:30:13.192113452Z"
+}

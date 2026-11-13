@@ -2,9 +2,12 @@
 # Targets: scheduler, worker, autoscaler, ggctl, ggbench, tester.  docker build --target scheduler -t gophergrid/scheduler .
 ARG GO_IMAGE=golang:1.27-bookworm
 
-FROM ${GO_IMAGE} AS build
+# The build stage runs on the build machine's platform and cross-compiles for the target, so
+# `--platform linux/arm64` (the homelab iMac) builds natively on an amd64 laptop.
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
+ARG TARGETOS TARGETARCH
 WORKDIR /src
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
