@@ -51,26 +51,42 @@ func (n *Node) freeGPUs(memMB int64) []store.GPUInfo {
 	return out
 }
 
-// fits reports whether j can run on n now, and which GPUs it would get.
-func (n *Node) fits(j jobs.Job) ([]string, bool) {
+// fits reports whether j can run on n now and, for GPU jobs, how many free GPUs (of any
+// size) the node would have left. It runs for every (job, node) pair, so it doesn't
+// allocate; pickGPUs chooses the actual GPUs once a node has won.
+func (n *Node) fits(j jobs.Job) (gpusLeft int, ok bool) {
 	r := j.Resources
 	if !n.Types[j.Type] ||
 		n.Used.CPUMillis+r.CPUMillis > n.Capacity.CPUMillis ||
 		n.Used.MemoryMB+r.MemoryMB > n.Capacity.MemoryMB {
-		return nil, false
+		return 0, false
 	}
 	if r.GPUs == 0 {
-		return nil, true
+		return 0, true
 	}
-	free := n.freeGPUs(r.GPUMemoryMB)
-	if len(free) < r.GPUs {
-		return nil, false
+	free, big := 0, 0
+	for _, g := range n.GPUs {
+		if !n.UsedGPUs[g.ID] {
+			free++
+			if g.MemoryMB >= r.GPUMemoryMB {
+				big++
+			}
+		}
 	}
-	ids := make([]string, r.GPUs)
+	return free - r.GPUs, big >= r.GPUs
+}
+
+// pickGPUs returns the smallest free GPUs that are big enough (best fit).
+func (n *Node) pickGPUs(j jobs.Job) []string {
+	if j.Resources.GPUs == 0 {
+		return nil
+	}
+	free := n.freeGPUs(j.Resources.GPUMemoryMB)
+	ids := make([]string, j.Resources.GPUs)
 	for i := range ids {
-		ids[i] = free[i].ID // smallest GPUs that are big enough: best fit
+		ids[i] = free[i].ID
 	}
-	return ids, true
+	return ids
 }
 
 func (n *Node) take(j jobs.Job, gpus []string) {
@@ -100,17 +116,16 @@ func Place(queued []jobs.Job, nodes []*Node, p Policy) []store.Assignment {
 	var out []store.Assignment
 	for _, j := range queued {
 		var best *Node
-		var bestGPUs []string
 		bestScore := 0.0
 		for _, n := range nodes {
-			gpus, ok := n.fits(j)
+			gpusLeft, ok := n.fits(j)
 			if !ok {
 				continue
 			}
 			var score float64
 			if j.Resources.GPUs > 0 {
 				// Fewer free GPUs left afterwards is better; break ties on load.
-				score = float64(len(n.freeGPUs(0))-len(gpus))*10 + n.load(j.Resources)
+				score = float64(gpusLeft)*10 + n.load(j.Resources)
 			} else {
 				score = n.load(j.Resources)
 				if p.KeepGPUNodesFree && len(n.GPUs) > 0 {
@@ -118,14 +133,15 @@ func Place(queued []jobs.Job, nodes []*Node, p Policy) []store.Assignment {
 				}
 			}
 			if best == nil || score < bestScore || (score == bestScore && n.ID < best.ID) {
-				best, bestGPUs, bestScore = n, gpus, score
+				best, bestScore = n, score
 			}
 		}
 		if best == nil {
 			continue
 		}
-		best.take(j, bestGPUs)
-		out = append(out, store.Assignment{JobID: j.ID, WorkerID: best.ID, GPUIDs: bestGPUs})
+		gpus := best.pickGPUs(j)
+		best.take(j, gpus)
+		out = append(out, store.Assignment{JobID: j.ID, WorkerID: best.ID, GPUIDs: gpus})
 	}
 	return out
 }
