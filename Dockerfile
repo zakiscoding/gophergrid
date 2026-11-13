@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Targets: scheduler, worker, ggctl, tester.  docker build --target scheduler -t gophergrid/scheduler .
+# Targets: scheduler, worker, ggctl, ggbench, tester.  docker build --target scheduler -t gophergrid/scheduler .
 ARG GO_IMAGE=golang:1.27-bookworm
 
 FROM ${GO_IMAGE} AS build
@@ -28,6 +28,12 @@ ENTRYPOINT ["/worker"]
 FROM gcr.io/distroless/static-debian12:nonroot AS ggctl
 COPY --from=build /out/ggctl /ggctl
 ENTRYPOINT ["/ggctl"]
+
+# ggbench runs as root so it can use the mounted Docker socket for chaos runs.
+FROM gcr.io/distroless/static-debian12 AS ggbench
+COPY --from=build /out/ggbench /ggbench
+WORKDIR /work
+ENTRYPOINT ["/ggbench"]
 
 # Integration tests run in a container on the compose network and kill workers through the
 # Docker Engine API on the mounted socket.

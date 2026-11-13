@@ -1,0 +1,31 @@
+{
+  "name": "06-skip-scan-queue",
+  "jobs": 20000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 5,
+  "note": "eager + long-poll + batch insert + skip-scan aging queue",
+  "submit_seconds": 0.865701315,
+  "submit_jobs_per_sec": 23102.65637057511,
+  "wall_seconds": 15.758541,
+  "throughput_jobs_per_sec": 1269.1530262858726,
+  "queue_latency_ms": {
+    "p50": 7998,
+    "p95": 14156.9,
+    "p99": 14713.3
+  },
+  "end_to_end_ms": {
+    "p50": 8074.9,
+    "p95": 14245.2,
+    "p99": 14793.2
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 20000,
+  "duplicate_results": 0,
+  "config": {
+    "HEARTBEAT_LONG_POLL": "400ms"
+  },
+  "at": "2026-11-13T21:04:34.503792846Z"
+}

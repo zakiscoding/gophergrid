@@ -1,0 +1,32 @@
+{
+  "name": "08-chaos-slow-restart",
+  "jobs": 3000,
+  "job_type": "sleep",
+  "job_ms": 200,
+  "cpu_millis": 250,
+  "workers": 5,
+  "note": "random worker SIGKILL every 5s, down 6s (past the 3s heartbeat timeout)",
+  "submit_seconds": 0.072177436,
+  "submit_jobs_per_sec": 41564.23622473927,
+  "wall_seconds": 14.632649,
+  "throughput_jobs_per_sec": 205.0209774047064,
+  "queue_latency_ms": {
+    "p50": 6921.2,
+    "p95": 13636,
+    "p99": 14136.8
+  },
+  "end_to_end_ms": {
+    "p50": 7341.8,
+    "p95": 13857.6,
+    "p99": 14356
+  },
+  "retried_jobs": 8,
+  "failed_jobs": 0,
+  "results": 3000,
+  "duplicate_results": 0,
+  "kills": [
+    "worker-2@21:06:17.328",
+    "worker-2@21:06:22.066"
+  ],
+  "at": "2026-11-13T21:06:27.046706827Z"
+}

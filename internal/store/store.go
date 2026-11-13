@@ -407,3 +407,36 @@ func IsUniqueViolation(err error) bool {
 	var pg *pgconn.PgError
 	return errors.As(err, &pg) && pg.Code == "23505"
 }
+
+// SubmitMany stores jobs without idempotency keys in one statement (one round trip for the
+// whole batch instead of one per job).
+func (s *Store) SubmitMany(ctx context.Context, specs []jobs.Spec) ([]jobs.Job, error) {
+	n := len(specs)
+	ids, types := make([]string, n), make([]string, n)
+	payloads := make([]string, n)
+	prio, gpus, maxAtt := make([]int32, n), make([]int32, n), make([]int32, n)
+	cpu, mem, gmem, tmo := make([]int64, n), make([]int64, n), make([]int64, n), make([]int64, n)
+	for i, sp := range specs {
+		ids[i], types[i], payloads[i] = uuid.NewString(), sp.Type, string(sp.Payload)
+		prio[i], gpus[i], maxAtt[i] = int32(sp.Priority), int32(sp.Resources.GPUs), int32(sp.MaxAttempts)
+		cpu[i], mem[i], gmem[i], tmo[i] = sp.Resources.CPUMillis, sp.Resources.MemoryMB, sp.Resources.GPUMemoryMB, sp.TimeoutMS
+	}
+	rows, err := s.Pool.Query(ctx, `
+		INSERT INTO jobs AS j (id, type, payload, priority, cpu_millis, memory_mb, gpus, gpu_memory_mb, timeout_ms, max_attempts)
+		SELECT * FROM unnest($1::uuid[], $2::text[], $3::jsonb[], $4::int[], $5::bigint[], $6::bigint[],
+		                     $7::int[], $8::bigint[], $9::bigint[], $10::int[])
+		RETURNING `+jobColumns, ids, types, payloads, prio, cpu, mem, gpus, gmem, tmo, maxAtt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]jobs.Job, 0, n)
+	for rows.Next() {
+		j, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, rows.Err()
+}

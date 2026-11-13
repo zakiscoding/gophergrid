@@ -3,7 +3,6 @@ package sched
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -23,7 +22,7 @@ type Config struct {
 	TimeoutGrace      time.Duration // added to a job's timeout before the reaper takes it back
 	MaintenanceEvery  time.Duration // reaper and dead-worker check
 	Policy            Policy
-	QueueOrder        string // SQL ORDER BY for the queue scan
+	PriorityAging     time.Duration // a waiting job gains one priority point per period; 0 = off
 }
 
 // Defaults fills unset fields.
@@ -46,19 +45,6 @@ func (c *Config) Defaults() {
 	if c.MaintenanceEvery <= 0 {
 		c.MaintenanceEvery = 250 * time.Millisecond
 	}
-	if c.QueueOrder == "" {
-		c.QueueOrder = "j.priority DESC, j.created_at"
-	}
-}
-
-// QueueOrder returns the queue scan order. With aging > 0 a job gains one priority point
-// per aging period it waits, so a steady stream of high-priority work can't starve
-// low-priority jobs forever. Zero disables aging and lets Postgres use the queue index.
-func QueueOrder(aging time.Duration) string {
-	if aging <= 0 {
-		return "j.priority DESC, j.created_at"
-	}
-	return fmt.Sprintf("(j.priority + extract(epoch FROM now() - j.created_at) / %f) DESC, j.created_at", aging.Seconds())
 }
 
 // Scheduler is the leader's work loop.
@@ -148,7 +134,7 @@ func (s *Scheduler) schedule(ctx context.Context, epoch int64) (int, error) {
 	if err != nil || len(workers) == 0 {
 		return 0, err
 	}
-	assigned, err := s.Store.ScheduleBatch(ctx, epoch, s.Config.BatchSize, s.Config.LeaseTTL, s.Config.QueueOrder,
+	assigned, err := s.Store.ScheduleBatch(ctx, epoch, s.Config.BatchSize, s.Config.LeaseTTL, s.Config.PriorityAging,
 		func(queued []jobs.Job, usage map[string]store.Usage) []store.Assignment {
 			nodes := make([]*Node, len(workers))
 			for i, w := range workers {

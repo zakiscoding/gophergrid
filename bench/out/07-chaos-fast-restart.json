@@ -1,0 +1,33 @@
+{
+  "name": "07-chaos",
+  "jobs": 3000,
+  "job_type": "sleep",
+  "job_ms": 200,
+  "cpu_millis": 250,
+  "workers": 5,
+  "note": "random worker SIGKILL every 4s, restarted 2s later",
+  "submit_seconds": 0.079897556,
+  "submit_jobs_per_sec": 37548.082196656935,
+  "wall_seconds": 15.155575,
+  "throughput_jobs_per_sec": 197.94696011203797,
+  "queue_latency_ms": {
+    "p50": 7129,
+    "p95": 14162.9,
+    "p99": 14813
+  },
+  "end_to_end_ms": {
+    "p50": 7343.2,
+    "p95": 14425.2,
+    "p99": 15024.2
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 3000,
+  "duplicate_results": 0,
+  "kills": [
+    "worker-2@21:05:35.696",
+    "gpu-worker-1@21:05:39.565",
+    "worker-2@21:05:43.584"
+  ],
+  "at": "2026-11-13T21:05:46.72372522Z"
+}

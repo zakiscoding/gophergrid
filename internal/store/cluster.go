@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -212,14 +214,49 @@ type Assigned struct {
 // PlaceFunc decides placements for a batch of queued jobs, given current usage per worker.
 type PlaceFunc func(queued []jobs.Job, usage map[string]Usage) []Assignment
 
+// QueueSQL selects the next $1 queued jobs in queue order.
+//
+// Without aging the order is (priority DESC, created_at), served straight from
+// jobs_queued_idx. With aging, a job's score is priority + wait/aging, which no index can
+// order directly, and sorting the whole queue every pass took 25 ms at 20k queued jobs.
+// But within one priority level the oldest job always scores highest, so the global top N
+// is always among the N oldest jobs of each priority level present. The query finds those
+// levels with a skip scan, takes N per level from the index, and sorts only that small set:
+// the same result as the full sort, at index cost. TestAgingQueueMatchesNaiveOrder checks
+// that the two orders match.
+func QueueSQL(aging time.Duration, lock bool) string {
+	suffix := ""
+	if lock {
+		suffix = " FOR UPDATE OF j SKIP LOCKED"
+	}
+	if aging <= 0 {
+		return `SELECT ` + jobColumns + ` FROM jobs j WHERE j.status = 'queued'
+			ORDER BY j.priority DESC, j.created_at LIMIT $1` + suffix
+	}
+	score := fmt.Sprintf("(j.priority + extract(epoch FROM now() - j.created_at) / %f)", aging.Seconds())
+	return `WITH RECURSIVE levels(p) AS (
+			(SELECT priority FROM jobs WHERE status = 'queued' ORDER BY priority DESC LIMIT 1)
+			UNION ALL
+			SELECT (SELECT priority FROM jobs WHERE status = 'queued' AND priority < l.p ORDER BY priority DESC LIMIT 1)
+			FROM levels l WHERE l.p IS NOT NULL
+		), top AS (
+			SELECT c.id FROM levels l CROSS JOIN LATERAL (
+				SELECT id, priority, created_at FROM jobs
+				WHERE status = 'queued' AND priority = l.p ORDER BY created_at LIMIT $1) c
+			WHERE l.p IS NOT NULL
+			ORDER BY ` + strings.ReplaceAll(score, "j.", "c.") + ` DESC, c.created_at LIMIT $1
+		)
+		SELECT ` + jobColumns + ` FROM jobs j WHERE j.id = ANY(ARRAY(SELECT id FROM top)) AND j.status = 'queued'
+		ORDER BY ` + score + ` DESC, j.created_at` + suffix
+}
+
 // ScheduleBatch takes up to limit queued jobs, asks place where they go, and commits the
 // assignments with fresh leases, all in one fenced transaction.
-func (s *Store) ScheduleBatch(ctx context.Context, epoch int64, limit int, leaseTTL time.Duration, order string, place PlaceFunc) ([]Assigned, error) {
+func (s *Store) ScheduleBatch(ctx context.Context, epoch int64, limit int, leaseTTL, aging time.Duration, place PlaceFunc) ([]Assigned, error) {
 	var out []Assigned
 	err := s.leaderTx(ctx, epoch, func(tx pgx.Tx) error {
 		out = out[:0]
-		rows, err := tx.Query(ctx, `SELECT `+jobColumns+` FROM jobs j WHERE j.status = 'queued'
-			ORDER BY `+order+` LIMIT $1 FOR UPDATE SKIP LOCKED`, limit)
+		rows, err := tx.Query(ctx, QueueSQL(aging, true), limit)
 		if err != nil {
 			return err
 		}

@@ -1,0 +1,28 @@
+{
+  "name": "03-eager-no-long-poll",
+  "jobs": 5000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 5,
+  "note": "eager worker sync, no long-poll",
+  "submit_seconds": 6.651098629,
+  "submit_jobs_per_sec": 751.7555036996581,
+  "wall_seconds": 14.59369,
+  "throughput_jobs_per_sec": 342.61382830524695,
+  "queue_latency_ms": {
+    "p50": 3404.7,
+    "p95": 7141.7,
+    "p99": 7483.3
+  },
+  "end_to_end_ms": {
+    "p50": 3745.3,
+    "p95": 7620.3,
+    "p99": 7942.1
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 5000,
+  "duplicate_results": 0,
+  "at": "2026-11-13T20:59:18.134230114Z"
+}

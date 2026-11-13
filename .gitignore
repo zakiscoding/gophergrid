@@ -2,4 +2,4 @@
 *.test
 *.out
 .env
-/bench/out/
+/bench/out/*.tmp
