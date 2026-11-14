@@ -1,0 +1,438 @@
+[
+  {
+    "id": "16b86b31-4db8-46f2-b13e-b5a7e52dbe01",
+    "type": "benchmark",
+    "payload": {
+      "dtype": "float16",
+      "label": "fp16",
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "suite": "vllm-sweep",
+      "concurrency": [
+        1,
+        4,
+        16,
+        64
+      ],
+      "gpu_mem_util": 0.8,
+      "max_model_len": 4096
+    },
+    "priority": 0,
+    "resources": {
+      "cpu_millis": 4000,
+      "memory_mb": 8192,
+      "gpus": 1,
+      "gpu_memory_mb": 10000
+    },
+    "timeout_ms": 1200000,
+    "max_attempts": 2,
+    "status": "succeeded",
+    "attempt": 1,
+    "worker_id": "gpu-pc",
+    "gpu_ids": [
+      "GPU-53bd28f4-0992-8fc7-850c-56f8efbe0387"
+    ],
+    "result": {
+      "files": [
+        "fp16_c16_20261114_025734.json",
+        "fp16_c1_20261114_025734.json",
+        "fp16_c4_20261114_025734.json",
+        "fp16_c64_20261114_025734.json",
+        "fp16_server_20261114_025734.log",
+        "fp16_summary_20261114_025734.json",
+        "fp16_summary_20261114_025734.md"
+      ],
+      "label": "fp16",
+      "suite": "vllm-sweep",
+      "wall_s": 356.6,
+      "attempt": 1,
+      "gpu_ids": [
+        "GPU-53bd28f4-0992-8fc7-850c-56f8efbe0387"
+      ],
+      "raw_dir": "16b86b31-4db8-46f2-b13e-b5a7e52dbe01/a1",
+      "summary": {
+        "gpu": {
+          "gpu": "NVIDIA GeForce RTX 5070",
+          "driver": "616.56",
+          "mem_used_mib": 552,
+          "mem_total_mib": 12227
+        },
+        "rows": [
+          {
+            "wall_s": 37.2,
+            "raw_file": "fp16_c1_20261114_025734.json",
+            "completed": 16,
+            "duration_s": 25.65,
+            "itl_p50_ms": 6.01,
+            "itl_p95_ms": 6.5,
+            "itl_p99_ms": 6.63,
+            "concurrency": 1,
+            "e2el_p50_ms": 1584.6,
+            "e2el_p95_ms": 1734.7,
+            "e2el_p99_ms": 1739.7,
+            "num_prompts": 16,
+            "total_tok_s": 479.0,
+            "tpot_p50_ms": 6.08,
+            "tpot_p95_ms": 6.15,
+            "tpot_p99_ms": 6.27,
+            "ttft_p50_ms": 33.8,
+            "ttft_p95_ms": 146.0,
+            "ttft_p99_ms": 174.2,
+            "output_tok_s": 159.7,
+            "gpu_mem_used_mib": 10244,
+            "request_throughput": 0.624
+          },
+          {
+            "wall_s": 19.0,
+            "raw_file": "fp16_c4_20261114_025734.json",
+            "completed": 16,
+            "duration_s": 6.9,
+            "itl_p50_ms": 6.31,
+            "itl_p95_ms": 6.77,
+            "itl_p99_ms": 6.98,
+            "concurrency": 4,
+            "e2el_p50_ms": 1720.0,
+            "e2el_p95_ms": 1737.1,
+            "e2el_p99_ms": 1737.3,
+            "num_prompts": 16,
+            "total_tok_s": 1780.4,
+            "tpot_p50_ms": 6.35,
+            "tpot_p95_ms": 6.61,
+            "tpot_p99_ms": 6.61,
+            "ttft_p50_ms": 101.8,
+            "ttft_p95_ms": 118.7,
+            "ttft_p99_ms": 119.1,
+            "output_tok_s": 593.5,
+            "gpu_mem_used_mib": 10244,
+            "request_throughput": 2.318
+          },
+          {
+            "wall_s": 19.7,
+            "raw_file": "fp16_c16_20261114_025734.json",
+            "completed": 64,
+            "duration_s": 8.51,
+            "itl_p50_ms": 6.82,
+            "itl_p95_ms": 7.5,
+            "itl_p99_ms": 8.62,
+            "concurrency": 16,
+            "e2el_p50_ms": 2119.0,
+            "e2el_p95_ms": 2166.4,
+            "e2el_p99_ms": 2170.1,
+            "num_prompts": 64,
+            "total_tok_s": 5777.7,
+            "tpot_p50_ms": 7.34,
+            "tpot_p95_ms": 8.03,
+            "tpot_p99_ms": 8.11,
+            "ttft_p50_ms": 244.4,
+            "ttft_p95_ms": 398.0,
+            "ttft_p99_ms": 406.4,
+            "output_tok_s": 1925.9,
+            "gpu_mem_used_mib": 10248,
+            "request_throughput": 7.523
+          },
+          {
+            "wall_s": 27.5,
+            "raw_file": "fp16_c64_20261114_025734.json",
+            "completed": 256,
+            "duration_s": 15.56,
+            "itl_p50_ms": 8.93,
+            "itl_p95_ms": 35.55,
+            "itl_p99_ms": 102.69,
+            "concurrency": 64,
+            "e2el_p50_ms": 3846.7,
+            "e2el_p95_ms": 4959.0,
+            "e2el_p99_ms": 5161.0,
+            "num_prompts": 256,
+            "total_tok_s": 12632.6,
+            "tpot_p50_ms": 13.72,
+            "tpot_p95_ms": 14.5,
+            "tpot_p99_ms": 14.88,
+            "ttft_p50_ms": 345.5,
+            "ttft_p95_ms": 1450.1,
+            "ttft_p99_ms": 1654.5,
+            "output_tok_s": 4210.9,
+            "gpu_mem_used_mib": 10243,
+            "request_throughput": 16.449
+          }
+        ],
+        "label": "fp16",
+        "model": "Qwen/Qwen2.5-1.5B-Instruct",
+        "dataset": "random",
+        "kv_cache": {
+          "raw_lines": [
+            "(EngineCore pid=139) INFO 11-14 02:58:17 [model_runner.py:424] Model loading took 2.98 GiB memory and 4.753204 seconds",
+            "(EngineCore pid=139) INFO 11-14 02:58:17 [utils.py:347] Using LBNHC KV cache layout.",
+            "(EngineCore pid=139) INFO 11-14 02:59:52 [gpu_worker.py:759] Available KV cache memory: 5.54 GiB",
+            "(EngineCore pid=139) INFO 11-14 02:59:52 [gpu_worker.py:774] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.8000 is equivalent to --gpu-memory-utilization=0.7746 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.8254. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.",
+            "(EngineCore pid=139) INFO 11-14 02:59:52 [kv_cache_utils.py:2327] GPU KV cache size: 207,632 tokens, Maximum concurrency for 4,096 tokens per request: 50.69x"
+          ],
+          "kv_cache_tokens": 207632,
+          "model_weights_gib": 2.98,
+          "kv_cache_memory_gib": 5.54,
+          "max_concurrency_at_max_len": 50.69,
+          "max_concurrency_tokens_per_request": 4096
+        },
+        "input_len": 512,
+        "timestamp": "20261114_025734",
+        "output_len": 256,
+        "serve_args": [
+          "--no-enable-prefix-caching",
+          "--generation-config",
+          "vllm"
+        ],
+        "gpu_mem_util": 0.8,
+        "vllm_version": "0.32.0",
+        "max_model_len": 4096,
+        "extra_serve_args": [
+          "--dtype",
+          "float16"
+        ],
+        "server_startup_s": 230.1,
+        "gpu_mem_used_mib_before": 552,
+        "gpu_mem_used_mib_loaded": 10079
+      }
+    },
+    "created_at": "2026-11-14T02:57:43.082051Z",
+    "assigned_at": "2026-11-14T02:57:43.109816Z",
+    "started_at": "2026-11-14T02:57:43.109816Z",
+    "finished_at": "2026-11-14T03:03:39.828683Z"
+  },
+  {
+    "id": "22675aca-c255-4fb4-8838-8211ef57c3b9",
+    "type": "benchmark",
+    "payload": {
+      "dtype": "float16",
+      "label": "awq",
+      "model": "Qwen/Qwen2.5-1.5B-Instruct-AWQ",
+      "suite": "vllm-sweep",
+      "concurrency": [
+        1,
+        4,
+        16,
+        64
+      ],
+      "gpu_mem_util": 0.8,
+      "quantization": "awq_marlin",
+      "max_model_len": 4096
+    },
+    "priority": 0,
+    "resources": {
+      "cpu_millis": 4000,
+      "memory_mb": 8192,
+      "gpus": 1,
+      "gpu_memory_mb": 10000
+    },
+    "timeout_ms": 1200000,
+    "max_attempts": 2,
+    "status": "failed",
+    "attempt": 2,
+    "worker_id": "gpu-pc",
+    "gpu_ids": [
+      "GPU-53bd28f4-0992-8fc7-850c-56f8efbe0387"
+    ],
+    "last_error": "worker over capacity",
+    "created_at": "2026-11-14T03:03:44.774082Z",
+    "assigned_at": "2026-11-14T03:03:44.803829Z",
+    "started_at": "2026-11-14T03:07:42.989412Z",
+    "finished_at": "2026-11-14T03:07:43.530428Z"
+  },
+  {
+    "id": "11e4c929-508f-4717-9cde-836e3426513b",
+    "type": "benchmark",
+    "payload": {
+      "dtype": "float16",
+      "label": "fp8",
+      "model": "Qwen/Qwen2.5-1.5B-Instruct",
+      "suite": "vllm-sweep",
+      "concurrency": [
+        1,
+        4,
+        16,
+        64
+      ],
+      "gpu_mem_util": 0.8,
+      "quantization": "fp8",
+      "max_model_len": 4096
+    },
+    "priority": 0,
+    "resources": {
+      "cpu_millis": 4000,
+      "memory_mb": 8192,
+      "gpus": 1,
+      "gpu_memory_mb": 10000
+    },
+    "timeout_ms": 1200000,
+    "max_attempts": 1,
+    "status": "succeeded",
+    "attempt": 1,
+    "worker_id": "gpu-pc",
+    "gpu_ids": [
+      "GPU-53bd28f4-0992-8fc7-850c-56f8efbe0387"
+    ],
+    "result": {
+      "files": [
+        "fp8_c16_20261114_030736.json",
+        "fp8_c1_20261114_030736.json",
+        "fp8_c4_20261114_030736.json",
+        "fp8_c64_20261114_030736.json",
+        "fp8_server_20261114_030736.log",
+        "fp8_summary_20261114_030736.json",
+        "fp8_summary_20261114_030736.md"
+      ],
+      "label": "fp8",
+      "suite": "vllm-sweep",
+      "wall_s": 337.5,
+      "attempt": 1,
+      "gpu_ids": [
+        "GPU-53bd28f4-0992-8fc7-850c-56f8efbe0387"
+      ],
+      "raw_dir": "11e4c929-508f-4717-9cde-836e3426513b/a1",
+      "summary": {
+        "gpu": {
+          "gpu": "NVIDIA GeForce RTX 5070",
+          "driver": "616.56",
+          "mem_used_mib": 535,
+          "mem_total_mib": 12227
+        },
+        "rows": [
+          {
+            "wall_s": 29.6,
+            "raw_file": "fp8_c1_20261114_030736.json",
+            "completed": 16,
+            "duration_s": 17.73,
+            "itl_p50_ms": 4.18,
+            "itl_p95_ms": 4.63,
+            "itl_p99_ms": 4.84,
+            "concurrency": 1,
+            "e2el_p50_ms": 1103.9,
+            "e2el_p95_ms": 1123.4,
+            "e2el_p99_ms": 1156.9,
+            "num_prompts": 16,
+            "total_tok_s": 692.9,
+            "tpot_p50_ms": 4.23,
+            "tpot_p95_ms": 4.31,
+            "tpot_p99_ms": 4.42,
+            "ttft_p50_ms": 24.4,
+            "ttft_p95_ms": 26.8,
+            "ttft_p99_ms": 29.0,
+            "output_tok_s": 231.0,
+            "gpu_mem_used_mib": 10235,
+            "request_throughput": 0.902
+          },
+          {
+            "wall_s": 16.6,
+            "raw_file": "fp8_c4_20261114_030736.json",
+            "completed": 16,
+            "duration_s": 4.84,
+            "itl_p50_ms": 4.29,
+            "itl_p95_ms": 4.77,
+            "itl_p99_ms": 4.96,
+            "concurrency": 4,
+            "e2el_p50_ms": 1175.7,
+            "e2el_p95_ms": 1320.0,
+            "e2el_p99_ms": 1320.1,
+            "num_prompts": 16,
+            "total_tok_s": 2538.6,
+            "tpot_p50_ms": 4.34,
+            "tpot_p95_ms": 4.52,
+            "tpot_p99_ms": 4.6,
+            "ttft_p50_ms": 68.6,
+            "ttft_p95_ms": 213.0,
+            "ttft_p99_ms": 213.5,
+            "output_tok_s": 846.2,
+            "gpu_mem_used_mib": 10237,
+            "request_throughput": 3.305
+          },
+          {
+            "wall_s": 18.0,
+            "raw_file": "fp8_c16_20261114_030736.json",
+            "completed": 64,
+            "duration_s": 5.87,
+            "itl_p50_ms": 4.77,
+            "itl_p95_ms": 5.49,
+            "itl_p99_ms": 6.28,
+            "concurrency": 16,
+            "e2el_p50_ms": 1464.2,
+            "e2el_p95_ms": 1523.9,
+            "e2el_p99_ms": 1527.3,
+            "num_prompts": 64,
+            "total_tok_s": 8366.4,
+            "tpot_p50_ms": 5.11,
+            "tpot_p95_ms": 5.45,
+            "tpot_p99_ms": 5.55,
+            "ttft_p50_ms": 162.9,
+            "ttft_p95_ms": 252.4,
+            "ttft_p99_ms": 259.4,
+            "output_tok_s": 2788.8,
+            "gpu_mem_used_mib": 10237,
+            "request_throughput": 10.894
+          },
+          {
+            "wall_s": 22.6,
+            "raw_file": "fp8_c64_20261114_030736.json",
+            "completed": 256,
+            "duration_s": 11.43,
+            "itl_p50_ms": 6.94,
+            "itl_p95_ms": 25.84,
+            "itl_p99_ms": 64.26,
+            "concurrency": 64,
+            "e2el_p50_ms": 2764.9,
+            "e2el_p95_ms": 3824.4,
+            "e2el_p99_ms": 3826.4,
+            "num_prompts": 256,
+            "total_tok_s": 17204.2,
+            "tpot_p50_ms": 9.74,
+            "tpot_p95_ms": 11.01,
+            "tpot_p99_ms": 11.61,
+            "ttft_p50_ms": 292.9,
+            "ttft_p95_ms": 863.3,
+            "ttft_p99_ms": 1014.0,
+            "output_tok_s": 5734.7,
+            "gpu_mem_used_mib": 10223,
+            "request_throughput": 22.401
+          }
+        ],
+        "label": "fp8",
+        "model": "Qwen/Qwen2.5-1.5B-Instruct",
+        "dataset": "random",
+        "kv_cache": {
+          "raw_lines": [
+            "(EngineCore pid=201) INFO 11-14 03:08:11 [model_runner.py:424] Model loading took 1.73 GiB memory and 6.017045 seconds",
+            "(EngineCore pid=201) INFO 11-14 03:08:11 [utils.py:347] Using LBNHC KV cache layout.",
+            "(EngineCore pid=201) INFO 11-14 03:09:56 [gpu_worker.py:759] Available KV cache memory: 6.83 GiB",
+            "(EngineCore pid=201) INFO 11-14 03:09:56 [gpu_worker.py:774] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.8000 is equivalent to --gpu-memory-utilization=0.7767 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.8233. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.",
+            "(EngineCore pid=201) INFO 11-14 03:09:56 [kv_cache_utils.py:2327] GPU KV cache size: 255,936 tokens, Maximum concurrency for 4,096 tokens per request: 62.48x"
+          ],
+          "kv_cache_tokens": 255936,
+          "model_weights_gib": 1.73,
+          "kv_cache_memory_gib": 6.83,
+          "max_concurrency_at_max_len": 62.48,
+          "max_concurrency_tokens_per_request": 4096
+        },
+        "input_len": 512,
+        "timestamp": "20261114_030736",
+        "output_len": 256,
+        "serve_args": [
+          "--no-enable-prefix-caching",
+          "--generation-config",
+          "vllm"
+        ],
+        "gpu_mem_util": 0.8,
+        "vllm_version": "0.32.0",
+        "max_model_len": 4096,
+        "extra_serve_args": [
+          "--quantization",
+          "fp8",
+          "--dtype",
+          "float16"
+        ],
+        "server_startup_s": 232.2,
+        "gpu_mem_used_mib_before": 535,
+        "gpu_mem_used_mib_loaded": 10109
+      }
+    },
+    "created_at": "2026-11-14T03:07:45.85197Z",
+    "assigned_at": "2026-11-14T03:07:45.889459Z",
+    "started_at": "2026-11-14T03:07:45.889459Z",
+    "finished_at": "2026-11-14T03:13:23.583688Z"
+  }
+]

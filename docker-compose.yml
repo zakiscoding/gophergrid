@@ -34,6 +34,10 @@ x-worker: &worker
     MEMORY_MB: "2048"
     GPU_MODE: none
     LOG_LEVEL: info
+    # `llm` jobs go to the fake OpenAI server below (a live vLLM on the homelab).
+    LLM_URL: http://fakellm:8000/v1
+    LLM_API_KEY: test-key
+    LLM_MODEL: fake-qwen
 
 services:
   postgres:
@@ -83,6 +87,11 @@ services:
   worker-3:
     <<: *worker
     environment: { <<: *worker-env, WORKER_ID: worker-3 }
+
+  fakellm:
+    build: { context: ., target: fakellm }
+    image: gophergrid/fakellm:dev
+    environment: { FAKE_LATENCY: 100ms, FAKE_TOKEN_LATENCY: 50ms, FAKE_API_KEY: test-key }
 
   # Simulated GPU workers (GPU_MODE=sim): placement, GPU memory limits and inference
   # fan-out run without hardware. On the real GPU node use GPU_MODE=nvidia (docs/homelab.md).
@@ -140,6 +149,7 @@ services:
       DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid?sslmode=disable
       TEST_DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:-gophergrid}@postgres:5432/gophergrid_test?sslmode=disable
       COMPOSE_PROJECT: gophergrid
+      FAKELLM_URL: http://fakellm:8000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 

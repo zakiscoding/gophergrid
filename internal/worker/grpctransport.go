@@ -165,7 +165,7 @@ func (t *GRPCTransport) Sync(ctx context.Context, st State) (SyncResult, error) 
 // Complete reports a result.
 func (t *GRPCTransport) Complete(ctx context.Context, r Result) (bool, error) {
 	req := &pb.CompleteJobRequest{WorkerId: t.WorkerID, JobId: r.JobID, Attempt: int32(r.Attempt), Success: r.Success,
-		Permanent: r.Permanent, Output: r.Output, Error: r.Error, DurationMs: r.Duration.Milliseconds()}
+		Permanent: r.Permanent, Output: r.Output, Error: r.Error, DurationMs: r.Duration.Milliseconds(), Declined: r.Declined}
 	var accepted bool
 	err := t.call(ctx, func(ctx context.Context, c pb.WorkerServiceClient, opts ...grpc.CallOption) error {
 		resp, err := c.CompleteJob(ctx, req, opts...)

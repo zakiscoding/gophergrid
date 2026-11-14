@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Targets: scheduler, worker, worker-rs, autoscaler, ggctl, ggbench, tester.  docker build --target scheduler -t gophergrid/scheduler .
+# Targets: scheduler, worker, worker-rs, autoscaler, ggctl, ggbench, fakellm, tester.  docker build --target scheduler -t gophergrid/scheduler .
 ARG GO_IMAGE=golang:1.27-bookworm
 
 # The build stage runs on the build machine's platform and cross-compiles for the target, so
@@ -56,6 +56,12 @@ ENTRYPOINT ["/ggctl"]
 FROM gcr.io/distroless/static-debian12 AS autoscaler
 COPY --from=build /out/autoscaler /autoscaler
 ENTRYPOINT ["/autoscaler"]
+
+# A deterministic OpenAI-compatible stand-in for vLLM, for the integration tests.
+FROM gcr.io/distroless/static-debian12:nonroot AS fakellm
+COPY --from=build /out/fakellm /fakellm
+EXPOSE 8000
+ENTRYPOINT ["/fakellm"]
 
 # ggbench runs as root so it can use the mounted Docker socket for chaos runs.
 FROM gcr.io/distroless/static-debian12 AS ggbench
