@@ -1,0 +1,28 @@
+{
+  "name": "fleet-rust-image",
+  "jobs": 300,
+  "job_type": "image",
+  "job_ms": 0,
+  "cpu_millis": 1000,
+  "workers": 5,
+  "note": "5 rust workers, 300 image jobs 640x640 r4 at 1 core",
+  "submit_seconds": 0.071947917,
+  "submit_jobs_per_sec": 4169.682911042442,
+  "wall_seconds": 35.629191,
+  "throughput_jobs_per_sec": 8.420062077749675,
+  "queue_latency_ms": {
+    "p50": 18488.7,
+    "p95": 32847.1,
+    "p99": 34403.7
+  },
+  "end_to_end_ms": {
+    "p50": 19749.8,
+    "p95": 34377.4,
+    "p99": 35512.9
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 300,
+  "duplicate_results": 0,
+  "at": "2026-11-14T00:58:40.806427486Z"
+}

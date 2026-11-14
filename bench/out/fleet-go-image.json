@@ -1,0 +1,28 @@
+{
+  "name": "fleet-go-image",
+  "jobs": 300,
+  "job_type": "image",
+  "job_ms": 0,
+  "cpu_millis": 1000,
+  "workers": 5,
+  "note": "5 go workers, 300 image jobs 640x640 r4 at 1 core",
+  "submit_seconds": 0.258121818,
+  "submit_jobs_per_sec": 1162.241930281151,
+  "wall_seconds": 93.529383,
+  "throughput_jobs_per_sec": 3.2075481562836785,
+  "queue_latency_ms": {
+    "p50": 48657,
+    "p95": 85246.6,
+    "p99": 88390.4
+  },
+  "end_to_end_ms": {
+    "p50": 51822.2,
+    "p95": 88468.1,
+    "p99": 92101.4
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 300,
+  "duplicate_results": 0,
+  "at": "2026-11-14T01:02:25.55140292Z"
+}

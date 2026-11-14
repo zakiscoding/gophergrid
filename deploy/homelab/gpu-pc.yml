@@ -6,7 +6,7 @@ name: gophergrid
 
 services:
   gpu-worker:
-    image: gophergrid/worker:dev
+    image: ${WORKER_IMAGE:-gophergrid/worker:dev}   # gophergrid/worker-rs:dev for the Rust worker
     restart: unless-stopped
     environment:
       WORKER_ID: gpu-pc
