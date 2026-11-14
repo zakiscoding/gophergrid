@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: go vet + go test -race
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      # Store tests skip without TEST_DATABASE_URL; they run in the integration job.
+      # The race detector needs cgo.
+      - run: CGO_ENABLED=1 go test -race -count=1 ./...
+
+  integration:
+    # The full Compose stack: Postgres, etcd, 2 schedulers, 5 workers (2 with simulated GPUs).
+    # The tests kill workers and the leader through the Docker socket and check that every
+    # job still records exactly one result. Real-GPU and live-vLLM jobs are not exercised
+    # here; they need the homelab (see docs/homelab.md).
+    name: Integration (kill workers and the leader)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Start the stack
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: Store + integration tests
+        run: docker compose --profile test run --build --rm tester
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+      - if: always()
+        run: docker compose --profile test down -v
+
+  rust:
+    name: cargo test (worker-rs)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check for worker-rs
+        id: has
+        run: echo "rust=$([ -f worker-rs/Cargo.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - if: steps.has.outputs.rust == 'true'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: worker-rs
+      - if: steps.has.outputs.rust == 'true'
+        working-directory: worker-rs
+        run: cargo test --locked
