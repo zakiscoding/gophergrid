@@ -1,0 +1,7 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+gophergrid.yaml
+out*/
+results-run1/

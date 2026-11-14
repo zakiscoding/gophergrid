@@ -1,8 +1,8 @@
 # Kubernetes
 
 [gophergrid.yaml](gophergrid.yaml) runs the same system on Kubernetes. It passes
-`kubeconform -strict` against Kubernetes 1.33 and the KEDA CRD schema. It has **not** been run
-on a live cluster yet: the test suite runs against Docker Compose.
+`kubeconform -strict` against Kubernetes 1.33 and the KEDA CRD schema. It has been run on a
+live GKE cluster with KEDA and the cluster autoscaler: see [../gke/README.md](../gke/README.md).
 
 ```bash
 kubectl create namespace gophergrid

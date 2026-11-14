@@ -1,0 +1,54 @@
+# GKE overlay of deploy/k8s/gophergrid.yaml: registry images, KEDA scaling on the scheduler's
+# /v1/autoscale endpoint (no Prometheus in this cluster), the GPU worker dropped.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: gophergrid
+resources:
+  - gophergrid.yaml          # copied from ../k8s by run.sh (kustomize won't load files outside this dir)
+images:
+  - {name: gophergrid/scheduler, newName: REGISTRY/scheduler, newTag: TAG}
+  - {name: gophergrid/worker, newName: REGISTRY/worker, newTag: TAG}
+patches:
+  - target: {kind: Deployment, name: worker-gpu}
+    patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: {name: worker-gpu}
+  - target: {kind: ScaledObject, name: worker}
+    patch: |
+      - op: replace
+        path: /spec/triggers
+        value:
+          - type: metrics-api
+            metadata:
+              url: http://scheduler.gophergrid.svc:8080/v1/autoscale
+              valueLocation: queued
+              targetValue: "100"
+  - target: {kind: ScaledObject, name: worker}
+    patch: |
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 6
+  # 2 x e2-standard-2 (~3.8 allocatable vCPU): size workers to 0.5 vCPU so KEDA can run up to 6
+  - target: {kind: Deployment, name: worker}
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value: {requests: {cpu: 500m, memory: 512Mi}, limits: {cpu: 500m, memory: 640Mi}}
+  - target: {kind: Deployment, name: worker}
+    patch: |                    # strategic merge: env entries merge by name, so these override
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: {name: worker}
+      spec:
+        template:
+          spec:
+            containers:
+              - name: worker
+                env:
+                  - {name: CPU_MILLIS, value: "500"}
+                  - {name: MEMORY_MB, value: "512"}

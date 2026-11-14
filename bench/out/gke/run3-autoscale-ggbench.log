@@ -1,0 +1,28 @@
+submitted 3000 jobs in 101ms (29769/s)
+{
+  "name": "gke",
+  "jobs": 3000,
+  "job_type": "sleep",
+  "job_ms": 500,
+  "cpu_millis": 100,
+  "workers": 1,
+  "submit_seconds": 0.100777142,
+  "submit_jobs_per_sec": 29768.65527700716,
+  "wall_seconds": 127.020035,
+  "throughput_jobs_per_sec": 23.61832131442886,
+  "queue_latency_ms": {
+    "p50": 88101.3,
+    "p95": 123707.7,
+    "p99": 125902.9
+  },
+  "end_to_end_ms": {
+    "p50": 88611.9,
+    "p95": 124221.3,
+    "p99": 126415.7
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 3000,
+  "duplicate_results": 0,
+  "at": "2026-11-14T14:16:24.021260493Z"
+}
