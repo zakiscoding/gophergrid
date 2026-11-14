@@ -92,6 +92,7 @@ between nodes; slots below are at 250 millicores per job (16 on the laptop, 32 o
 | [`llm` jobs on the live vLLM](../bench/out/homelab-05-llm.json): 300 jobs × 8 prompts × 64 tokens, Qwen2.5-1.5B-Instruct on the RTX 5070 | **12.2 jobs/s, 5,792 completion tok/s**, request p50/p95 518/567 ms; 300/300, 0 retried. Same jobs again with the `gpu-pc` worker **SIGKILLed while running 6 of them**, back 5 s later: 300/300, 8 retried, 9.3 jobs/s, **0 duplicates** (600 jobs, 600 result rows) |
 | [`benchmark` job, `matmul` suite](../bench/out/homelab-06-benchmark-matmul.json): gpu-systems-lab's `benchmarks/smoke_test.py`, 8192², 1 GPU and 900 MB requested, vLLM still serving | **63.6 TFLOPS fp16, 64.0 bf16**, 32.6 tf32, 22.9 fp32; 800 MiB peak, inside the 900 MB the job asked for; 15.5 s in the container |
 | [`benchmark` jobs, `vllm-sweep` suite](../bench/out/homelab-07-inference-sweeps.json): FP16, AWQ and FP8 vLLM servers on the RTX 5070, each started, swept over concurrency 1–64 and stopped by the job ([submitter](../bench/submit_inference_sweeps.py)) | 3 configurations in 28 min of a chat-down window, ~6 min each; at 64 concurrent requests **FP8 5,735 tok/s vs FP16 4,211**. Results and charts are in [gpu-systems-lab](https://github.com/zakiscoding/gpu-systems-lab/blob/main/docs/RESULTS.md). AWQ needed 3 attempts: twice `gpu-pc` missed heartbeats for >3 s mid-run, was declared dead and its job requeued (see below) |
+| [Speculative decoding sweeps](../bench/out/homelab-08-spec-decoding.json): off, n-gram and a 0.5B draft model, same job type, a second 23-minute window | Speculation was slower at every concurrency on this 1.5B model (n-grams 2% accepted, draft 27–30%); [write-up](https://github.com/zakiscoding/gpu-systems-lab/blob/main/docs/RESULTS.md). The first job lost its lease twice within 40 s of starting (again missed heartbeats); each retry removed the previous attempt's container first, and attempt 3 ran clean |
 | Real GPU job: a `container` job running a PyTorch fp16 matmul in the vLLM image, needing 1 GPU and 600 MB | Placed by the iMac leader on `gpu-pc`'s RTX 5070 next to the live vLLM server: **41.4 TFLOPS fp16**, 9.4 s submit to result (mostly container start) |
 | [Throughput](../bench/out/homelab-01-baseline.json): 2,000 zero-length jobs at 100 millicores | **1,620 jobs/s**, queue p50 567 ms; 1,321 ran on the GPU PC, 679 on the laptop; 0 duplicates |
 | [Control](../bench/out/homelab-02-control.json): 3,000 × 200 ms jobs | 181 jobs/s, 0 retried, 0 duplicates |
@@ -138,8 +139,8 @@ jobs are plain `POST /v1/jobs`.
   matter for correctness.
 - **The laptop sleeps.** If `scheduler-2` leads when it does, the iMac's scheduler takes over in
   ~5 s; its worker is declared dead after 3 s and its jobs move to the GPU PC.
-- **A worker declared dead can still be running.** During the AWQ sweep, `gpu-pc` missed
-  heartbeats twice (cause not found; its logs went with a container recreate), so the leader
+- **A worker declared dead can still be running.** During the AWQ sweep (and twice more at the
+  start of the speculative-decoding sweep), `gpu-pc` missed heartbeats twice (cause not found; its logs went with a container recreate), so the leader
   requeued the benchmark and handed attempt 2 straight back to the same, re-registered worker.
   The old attempt still held the GPU, so the worker declined it, and the decline counted as a
   failed attempt. Now a worker reports a decline as `declined`, which requeues the job without
