@@ -148,6 +148,9 @@ jobs are plain `POST /v1/jobs`.
   costs the GPU time it had used; reattaching a "dead" worker's live attempt would avoid that.
 - **No retry backoff.** A failed attempt is retried at once: a job whose `llm` URL didn't
   resolve used all 5 attempts in 0.3 s. Backoff would be the next fix.
+- **A Colima restart leaves GopherGrid down.** After `colima restart` on the iMac (2026-11-14),
+  Postgres, etcd and `scheduler-1` stayed stopped despite `restart: unless-stopped`, and needed
+  `docker start`. Check `/v1/leader` after any iMac VM restart.
 - **The iMac is a single point of failure** for Postgres and etcd, as noted in DESIGN.md.
 - **Monitoring:** the homelab's central Prometheus on the iMac scrapes both schedulers and both
   workers (worker metrics are shared on the tailnet as laptop `:9101` and GPU PC `:9102`), and
