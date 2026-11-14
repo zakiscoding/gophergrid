@@ -3,3 +3,4 @@
 *.out
 .env
 /bench/out/*.tmp
+/worker-rs/target/

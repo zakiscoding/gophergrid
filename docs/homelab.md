@@ -38,7 +38,7 @@ flowchart LR
 |---|---|---|---|
 | `mos-imac` | [`imac.yml`](../deploy/homelab/imac.yml) | Postgres, etcd, `scheduler-1` | arm64. Ports 9090/3000 are the homelab Prometheus/Grafana, so GopherGrid uses 9095/8090 |
 | `hp-laptop` | [`laptop.yml`](../deploy/homelab/laptop.yml) | `scheduler-2`, worker `hp-laptop` | A second scheduler on another machine, so the cluster survives losing the iMac's scheduler |
-| GPU PC (`zakar`, WSL2) | [`gpu-pc.yml`](../deploy/homelab/gpu-pc.yml) | worker `gpu-pc` | Real RTX 5070 from `nvidia-smi`; runs `container` and `benchmark` jobs with `docker run --gpus device=<uuid>`, and `llm` jobs against `vllm-chat` |
+| GPU PC (`zakar`, WSL2) | [`gpu-pc.yml`](../deploy/homelab/gpu-pc.yml) | worker `gpu-pc`: Go by default, or Rust with `WORKER_IMAGE=gophergrid/worker-rs:dev` | Real RTX 5070 from `nvidia-smi`; runs `container` and `benchmark` jobs with `docker run --gpus device=<uuid>`, and `llm` jobs against `vllm-chat` over the serving network. `llm` and `benchmark` exist only in the Go worker, so since 2026-11-14 the GPU PC runs Go; the Rust worker ran here before that (see [worker-rs](../worker-rs)) |
 
 The PC is in one boot at a time. On the Ubuntu boot (`zak-gpu-node`) the same `gpu-pc.yml`
 works with the same `WORKER_ID`.

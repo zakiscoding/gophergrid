@@ -1,0 +1,13 @@
+# Every worker runs the Rust implementation (worker-rs). Same services, settings and tests:
+#   docker compose -f docker-compose.yml -f compose.rust.yml up -d
+#   docker compose -f docker-compose.yml -f compose.rust.yml --profile test run --rm tester
+x-rust: &rust
+  build: { context: ., target: worker-rs }
+  image: gophergrid/worker-rs:dev
+
+services:
+  worker-1: *rust
+  worker-2: *rust
+  worker-3: *rust
+  gpu-worker-1: *rust
+  gpu-worker-2: *rust

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"math/rand"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -113,8 +112,7 @@ func runImage(ctx context.Context, t Task) (json.RawMessage, error) {
 		return nil, permanent("image size or blur radius out of range")
 	}
 	src := image.NewRGBA(image.Rect(0, 0, p.Width, p.Height))
-	rng := rand.New(rand.NewSource(p.Seed))
-	rng.Read(src.Pix)
+	fillSplitMix64(src.Pix, uint64(p.Seed))
 	gray := image.NewGray(src.Rect)
 	r := p.Radius
 	for y := 0; y < p.Height; y++ {
@@ -147,6 +145,24 @@ func runImage(ctx context.Context, t Task) (json.RawMessage, error) {
 		"width": p.Width, "height": p.Height, "blur_radius": p.Radius,
 		"checksum": hex.EncodeToString(sum[:8]),
 	})
+}
+
+// fillSplitMix64 fills b with the SplitMix64 stream for seed, 8 bytes little-endian per
+// value. It is the image job's pixel source because it is a few lines in any language:
+// workers written in Go and Rust must produce the same checksum for the same job, since a
+// retry can land on either (see worker-rs and TestImageChecksumMatchesSpec).
+func fillSplitMix64(b []byte, seed uint64) {
+	state := seed
+	for i := 0; i < len(b); i += 8 {
+		state += 0x9E3779B97F4A7C15
+		z := state
+		z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9
+		z = (z ^ (z >> 27)) * 0x94D049BB133111EB
+		z ^= z >> 31
+		for j := 0; j < 8 && i+j < len(b); j++ {
+			b[i+j] = byte(z >> (8 * j))
+		}
+	}
 }
 
 func runHash(ctx context.Context, t Task) (json.RawMessage, error) {

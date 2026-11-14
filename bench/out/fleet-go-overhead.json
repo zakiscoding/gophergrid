@@ -1,0 +1,28 @@
+{
+  "name": "fleet-go-overhead",
+  "jobs": 5000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 5,
+  "note": "5 go workers, zero-length jobs",
+  "submit_seconds": 1.159383513,
+  "submit_jobs_per_sec": 4312.636797000924,
+  "wall_seconds": 45.620401,
+  "throughput_jobs_per_sec": 109.60008878483993,
+  "queue_latency_ms": {
+    "p50": 23183.3,
+    "p95": 41970.6,
+    "p99": 44008.3
+  },
+  "end_to_end_ms": {
+    "p50": 24647.8,
+    "p95": 42605.9,
+    "p99": 44261.4
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 5000,
+  "duplicate_results": 0,
+  "at": "2026-11-14T01:00:42.415022756Z"
+}

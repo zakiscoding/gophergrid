@@ -118,6 +118,12 @@ max 163 ms, 0 failures. All 14,978 jobs succeeded with 0 duplicate results.
 of 400 ms at one core each. The pool grew within 1.8 s, peaked at 4 extra workers, drained the
 queue in 32 s, and was back to 0 extra workers 9 s later, each worker draining before exit.
 
+## Rust worker
+
+The Rust worker ([worker-rs](../worker-rs)) passes all of the above unchanged, both as the only
+worker and mixed with Go workers. Go vs. Rust measurements and caveats are in
+[worker-rs/README.md](../worker-rs/README.md#go-vs-rust).
+
 ## Not tested
 
 - The Kubernetes manifests on a live cluster (they pass `kubeconform -strict`).

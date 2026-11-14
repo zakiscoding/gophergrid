@@ -1,0 +1,10 @@
+# A mixed fleet: worker-2 and gpu-worker-1 run Rust (worker-rs), the rest Go. The failure
+# tests kill worker-2 and gpu-worker-1, so their jobs move between implementations.
+#   docker compose -f docker-compose.yml -f compose.mixed.yml up -d
+x-rust: &rust
+  build: { context: ., target: worker-rs }
+  image: gophergrid/worker-rs:dev
+
+services:
+  worker-2: *rust
+  gpu-worker-1: *rust

@@ -5,3 +5,4 @@ bench/out
 *.out
 .env
 docs
+worker-rs/target

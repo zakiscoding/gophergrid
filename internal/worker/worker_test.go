@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +12,12 @@ import (
 	"time"
 
 	"github.com/zakiscoding/gophergrid/internal/jobs"
+)
+
+// Cross-language test vectors, also computed by a separate Python implementation.
+const (
+	splitMixSeed1      = "c15c0289ec2d0a9167ec"
+	imageChecksum64x48 = "1682d6bdc6025b5b"
 )
 
 func TestImageIsDeterministic(t *testing.T) {
@@ -166,5 +173,44 @@ func TestAgentDrainFinishesRunningWork(t *testing.T) {
 	}
 	if last := ft.states[len(ft.states)-1]; !last.Draining || last.Free.CPUMillis != 0 {
 		t.Fatalf("last sync should advertise draining with no capacity: %+v", last)
+	}
+}
+
+// The same vectors are in worker-rs/src/runners.rs: Go and Rust workers must agree.
+func TestImageChecksumMatchesSpec(t *testing.T) {
+	b := make([]byte, 10)
+	fillSplitMix64(b, 1)
+	if got := hex.EncodeToString(b); got != splitMixSeed1 {
+		t.Fatalf("splitmix64(seed 1) = %s, want %s", got, splitMixSeed1)
+	}
+	out, err := runImage(context.Background(), Task{Type: jobs.TypeImage,
+		Payload: json.RawMessage(`{"width":64,"height":48,"blur_radius":2,"seed":3}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r struct{ Checksum string }
+	_ = json.Unmarshal(out, &r)
+	if r.Checksum != imageChecksum64x48 {
+		t.Fatalf("checksum = %s, want %s", r.Checksum, imageChecksum64x48)
+	}
+}
+
+// BenchmarkImageJob matches bench_image_job in worker-rs (cargo test --release -- --ignored).
+func BenchmarkImageJob(b *testing.B) {
+	task := Task{Type: jobs.TypeImage, Payload: json.RawMessage(`{"width":512,"height":512,"blur_radius":3,"seed":7}`)}
+	for b.Loop() {
+		if _, err := runImage(context.Background(), task); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkHashJob matches bench_hash_job in worker-rs.
+func BenchmarkHashJob(b *testing.B) {
+	task := Task{JobID: "bench", Type: jobs.TypeHash, Payload: json.RawMessage(`{"rounds":1000000}`)}
+	for b.Loop() {
+		if _, err := runHash(context.Background(), task); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
