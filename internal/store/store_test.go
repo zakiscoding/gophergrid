@@ -305,3 +305,41 @@ func TestAgingQueueMatchesNaiveOrder(t *testing.T) {
 		}
 	}
 }
+
+// TestDeclineDoesNotUseAnAttempt is the homelab case: a worker declared dead was handed the
+// next attempt of a job whose old attempt still held its GPU, and declined it. That must not
+// count as a failure, but a worker that keeps declining can't keep a job alive forever.
+func TestDeclineDoesNotUseAnAttempt(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	j := submit(t, s, jobs.Spec{Type: "sleep", MaxAttempts: 2})
+	decline := func(attempt int) Outcome {
+		t.Helper()
+		c, err := s.Claim(ctx, "w1", big, time.Second)
+		if err != nil || c.Attempt != attempt {
+			t.Fatalf("claim %d: %+v %v", attempt, c, err)
+		}
+		out, err := s.Complete(ctx, Completion{JobID: j.ID, Attempt: attempt, WorkerID: "w1", Declined: true, Error: "worker over capacity"})
+		if err != nil || !out.Accepted {
+			t.Fatalf("decline %d: %+v %v", attempt, out, err)
+		}
+		return out
+	}
+	// max_attempts 2, but the first MaxDeclines declines each add an attempt.
+	for a := 1; a <= MaxDeclines+1; a++ {
+		if out := decline(a); out.NewStatus != jobs.StatusQueued {
+			t.Fatalf("decline %d: want queued, got %s", a, out.NewStatus)
+		}
+	}
+	// Attempt MaxDeclines+2 is the last of 2+MaxDeclines: the next decline isn't free.
+	if out := decline(MaxDeclines + 2); out.NewStatus != jobs.StatusFailed {
+		t.Fatalf("after %d declines: want failed, got %s", MaxDeclines+1, out.NewStatus)
+	}
+	var declined int
+	if err := s.Pool.QueryRow(ctx, `SELECT count(*) FROM attempts WHERE job_id = $1 AND outcome = 'declined'`, j.ID).Scan(&declined); err != nil {
+		t.Fatal(err)
+	}
+	if declined != MaxDeclines+2 {
+		t.Fatalf("want %d declined attempts recorded, got %d", MaxDeclines+2, declined)
+	}
+}

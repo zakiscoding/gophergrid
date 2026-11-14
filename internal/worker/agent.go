@@ -59,6 +59,7 @@ type Result struct {
 	Attempt   int
 	Success   bool
 	Permanent bool
+	Declined  bool // refused before running: doesn't use up an attempt
 	Output    json.RawMessage
 	Error     string
 	Duration  time.Duration
@@ -194,7 +195,7 @@ func (a *Agent) start(runCtx context.Context, task Task) {
 	if !fits {
 		a.mu.Unlock()
 		a.Log.Warn("rejecting task that doesn't fit", "job", task.JobID)
-		go a.report(Result{JobID: task.JobID, Attempt: task.Attempt, Error: "worker over capacity"})
+		go a.report(Result{JobID: task.JobID, Attempt: task.Attempt, Declined: true, Error: "worker over capacity"})
 		return
 	}
 	a.used.CPUMillis += task.Resources.CPUMillis

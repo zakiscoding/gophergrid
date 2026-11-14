@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS attempts (
     worker_id  TEXT        NOT NULL,
     started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     ended_at   TIMESTAMPTZ,
-    outcome    TEXT,  -- succeeded, failed, lease_expired, rejected
+    outcome    TEXT,  -- succeeded, failed, declined, lease_expired, rejected
     error      TEXT,
     PRIMARY KEY (job_id, attempt)
 );
