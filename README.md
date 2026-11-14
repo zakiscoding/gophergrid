@@ -12,7 +12,7 @@ retried elsewhere, and every job still records exactly one result.
 ## Headline numbers
 
 Measured on one laptop (i3-1215U, Docker Desktop on WSL2): 2 schedulers, 5 workers, all in
-Docker, then on the homelab (iMac, laptop and GPU PC over Tailscale). Each number links to the JSON or test that produced it. Details: [docs/RESULTS.md](docs/RESULTS.md).
+Docker, then on the homelab (iMac and GPU PC over Tailscale; the laptop only controls). Each number links to the JSON or test that produced it. Details: [docs/RESULTS.md](docs/RESULTS.md).
 
 | What | Result |
 |---|---|
@@ -25,7 +25,7 @@ Docker, then on the homelab (iMac, laptop and GPU PC over Tailscale). Each numbe
 | REST submit, k6 at 500 req/s for 30 s | 497 req/s, p95 **43 ms**, 0 errors; all 14,978 jobs ran exactly once |
 | Batch submit | **28,083 jobs/s** (one `INSERT … SELECT FROM unnest`) |
 | Inference fan-out, 2,048 prompts → 32 GPU shards | Spread over all 3 simulated GPUs, **no GPU ever double-booked** (checked per attempt) |
-| **Homelab, 3 machines over Tailscale** ([details](docs/homelab.md)) | Leader killed on the iMac → laptop scheduler took over in **4.5 s**, 0 duplicates; real RTX 5070 job at 41.4 TFLOPS fp16 next to live vLLM; 1,620 jobs/s |
+| **Homelab, iMac + GPU PC over Tailscale** ([details](docs/homelab.md)) | Leader killed on the iMac → GPU PC scheduler took over in **~5 s**, 600/600 jobs, 0 duplicates; real RTX 5070 job at 41.4 TFLOPS fp16 next to live vLLM; 1,620 jobs/s |
 | **Rust worker** ([worker-rs](worker-rs)) | Same protocol; passes every failure test alone and mixed with Go workers (one checksum across both); image jobs **~2× faster**, **5× less** idle memory; runs real GPU jobs on the homelab |
 | **Real work on the homelab**: `llm` jobs on the live vLLM ([details](docs/homelab.md#real-work-llm-and-benchmark-jobs)) | 300 jobs × 8 prompts: **5,792 completion tok/s**; GPU worker SIGKILLed mid-run, 8 jobs retried, **600/600 jobs with exactly one result** |
 | `benchmark` job running gpu-systems-lab's matmul on the RTX 5070 | **63.6 TFLOPS fp16**, 800 MiB peak inside a 900 MB request, alongside the live chat server |
@@ -124,7 +124,7 @@ AUTOSCALE_COOLDOWN=10s docker compose --profile autoscale up -d autoscaler
 On a machine where OneDrive syncs the repo, `docker compose build` fails with "invalid file
 request"; `scripts/build.sh` streams the source to Docker as a tar archive instead.
 
-Running across machines (the homelab: iMac control plane, laptop, GPU PC with real GPUs via
+Running across machines (the homelab: iMac control plane and scheduler-1; GPU PC with scheduler-2 and the workers, real GPUs via
 `GPU_MODE=nvidia`): [docs/homelab.md](docs/homelab.md) and [`deploy/homelab`](deploy/homelab). Kubernetes: [deploy/k8s](deploy/k8s).
 
 ## Performance work
