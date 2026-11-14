@@ -1,0 +1,5 @@
+[13:43:31] deployed
+[13:43:51] bench start N=3000 MS=500
+[13:44:51] chaos: delete pod/worker-79b849cf7-5wlwq
+[13:45:23] chaos: delete scheduler leader pod/scheduler-78699c5958-4rsdb
+[13:46:51] bench done

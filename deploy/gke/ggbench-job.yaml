@@ -1,0 +1,19 @@
+# Benchmark run inside the cluster: submits N jobs over REST, waits, and checks that every job has
+# exactly one result (ggbench exits non-zero on a duplicate or a missing result).
+apiVersion: batch/v1
+kind: Job
+metadata: {name: ggbench, namespace: gophergrid}
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ggbench
+          image: REGISTRY/ggbench:TAG
+          args: ["-n", "N_JOBS", "-ms", "JOB_MS", "-cpu", "100", "-name", "gke", "-out", "/tmp/gke.json", "-timeout", "15m", "-reset"]
+          env:
+            - name: PGPASSWORD
+              valueFrom: {secretKeyRef: {name: gophergrid-db, key: password}}
+            - {name: DATABASE_URL, value: "postgres://gophergrid:$(PGPASSWORD)@postgres:5432/gophergrid?sslmode=disable"}
+            - {name: GOPHERGRID_URL, value: "http://scheduler:8080"}

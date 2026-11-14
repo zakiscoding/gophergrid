@@ -1,0 +1,4 @@
+[14:14:15] bench start N=3000 MS=500
+[14:15:16] chaos: delete pod/worker-79b849cf7-2c56h
+[14:15:48] chaos: delete scheduler leader pod/scheduler-78699c5958-7qrdn
+[14:16:26] bench done
