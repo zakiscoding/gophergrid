@@ -46,7 +46,7 @@ func main() {
 	// Real work, enabled per worker: `llm` needs a reachable vLLM, `benchmark` a real GPU,
 	// Docker and a gpu-systems-lab checkout. The API key is read from the environment only.
 	if r := worker.LLMRunner(worker.LLMConfig{
-		BaseURL: config.String("LLM_URL", ""), APIKey: os.Getenv("LLM_API_KEY"),
+		BaseURL: config.String("LLM_URL", ""), APIKey: firstEnv("LLM_API_KEY", "VLLM_API_KEY"),
 		Model: config.String("LLM_MODEL", ""), Concurrency: int(config.Int("LLM_CONCURRENCY", 8)),
 	}); r != nil {
 		runners[jobs.TypeLLM] = r
@@ -89,4 +89,15 @@ func main() {
 		os.Exit(1)
 	}
 	log.Info("worker stopped")
+}
+
+// firstEnv returns the first of the variables that is set. Secrets are read here only, so
+// they never pass through config logging.
+func firstEnv(keys ...string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }
