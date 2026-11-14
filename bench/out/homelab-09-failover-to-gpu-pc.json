@@ -1,0 +1,74 @@
+{
+  "name": "homelab-09-failover-to-gpu-pc",
+  "what": "Leader failover from the iMac to the GPU PC after scheduler-2 moved off the laptop",
+  "jobs": 600,
+  "job_type": "sleep",
+  "job_ms": 1000,
+  "cpu_millis": 250,
+  "workers": [
+    "gpu-pc (8 cores)",
+    "gpu-pc-cpu (4 cores)"
+  ],
+  "note": "SIGKILL scheduler-1 (leader, iMac) about 6 s after submit; scheduler-2 on the GPU PC takes over",
+  "submit_seconds": 0.478728652,
+  "kill_at_imac_clock": "2026-11-14T14:45:24.78Z",
+  "takeover": {
+    "scheduler2_became_leader_after_kill_s": "4.4-5.3 (scheduler-2's log; the GPU PC's WSL clock is 9-10 s behind, corrected)",
+    "seen_leading_from_laptop_after_kill_s": 5.6
+  },
+  "this_run_from_postgres": {
+    "jobs": 600,
+    "succeeded": 600,
+    "failed": 0,
+    "retried": 0,
+    "attempts": {
+      "succeeded": 600
+    },
+    "result_rows": 600,
+    "duplicate_results": 0,
+    "wall_s": 32.3,
+    "queue_latency_ms": {
+      "p50": 11768,
+      "p95": 28862
+    },
+    "end_to_end_ms": {
+      "p50": 14810,
+      "p95": 30571,
+      "p99": 32054
+    },
+    "by_worker": {
+      "gpu-pc": 386,
+      "gpu-pc-cpu": 214
+    }
+  },
+  "why_not_ggbench_totals": "ggbench aggregates the whole jobs/results tables and was run without -reset (the homelab database is shared, so it was not truncated). Its table-wide output is kept under ggbench_table_wide for reference; the numbers above are this run's 600 jobs only, selected by created_at.",
+  "ggbench_table_wide": {
+    "name": "homelab-09-failover-to-gpu-pc",
+    "jobs": 600,
+    "job_type": "sleep",
+    "job_ms": 1000,
+    "cpu_millis": 250,
+    "workers": 2,
+    "note": "homelab: SIGKILL scheduler-1 (leader, iMac) ~4s in; scheduler-2 on the GPU PC takes over",
+    "submit_seconds": 0.478728652,
+    "submit_jobs_per_sec": 1253.3195944996417,
+    "wall_seconds": 54919.903025,
+    "throughput_jobs_per_sec": 0.010925001082519665,
+    "queue_latency_ms": {
+      "p50": 15716.6,
+      "p95": 705571.2,
+      "p99": 714141.2
+    },
+    "end_to_end_ms": {
+      "p50": 17141.1,
+      "p95": 706135.2,
+      "p99": 714744.7
+    },
+    "retried_jobs": 12,
+    "failed_jobs": 3,
+    "results": 2658,
+    "duplicate_results": 0,
+    "at": "2026-11-14T14:45:50.921038962Z"
+  },
+  "at": "2026-11-14T14:45:51Z"
+}
