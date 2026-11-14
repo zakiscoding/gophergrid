@@ -7,7 +7,7 @@ elected in etcd, places them on workers by CPU, memory and GPU capacity, and wor
 under leases they renew with gRPC heartbeats. When a worker or the leader dies, its jobs are
 retried elsewhere, and every job still records exactly one result.
 
-[![CI](https://github.com/zakiscoding/gophergrid/actions/workflows/ci.yml/badge.svg)](https://github.com/zakiscoding/gophergrid/actions/workflows/ci.yml) ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat-square&logo=go&logoColor=white) ![gRPC](https://img.shields.io/badge/gRPC-protobuf-244c5a?style=flat-square) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![etcd](https://img.shields.io/badge/etcd-leader%20election-419EDA?style=flat-square&logo=etcd&logoColor=white) ![Prometheus](https://img.shields.io/badge/Prometheus%20%2B%20Grafana-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white) ![k6](https://img.shields.io/badge/k6-load%20test-7D64FF?style=flat-square&logo=k6&logoColor=white)
+[![CI](https://github.com/zakiscoding/gophergrid/actions/workflows/ci.yml/badge.svg)](https://github.com/zakiscoding/gophergrid/actions/workflows/ci.yml) ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat-square&logo=go&logoColor=white) ![gRPC](https://img.shields.io/badge/gRPC-protobuf-244c5a?style=flat-square) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![etcd](https://img.shields.io/badge/etcd-leader%20election-419EDA?style=flat-square&logo=etcd&logoColor=white) ![Prometheus](https://img.shields.io/badge/Prometheus%20%2B%20Grafana-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white) ![Rust](https://img.shields.io/badge/Rust-worker-B7410E?style=flat-square&logo=rust&logoColor=white) ![k6](https://img.shields.io/badge/k6-load%20test-7D64FF?style=flat-square&logo=k6&logoColor=white)
 
 ## Headline numbers
 
@@ -26,6 +26,7 @@ Docker, then on the homelab (iMac, laptop and GPU PC over Tailscale). Each numbe
 | Batch submit | **28,083 jobs/s** (one `INSERT … SELECT FROM unnest`) |
 | Inference fan-out, 2,048 prompts → 32 GPU shards | Spread over all 3 simulated GPUs, **no GPU ever double-booked** (checked per attempt) |
 | **Homelab, 3 machines over Tailscale** ([details](docs/homelab.md)) | Leader killed on the iMac → laptop scheduler took over in **4.5 s**, 0 duplicates; real RTX 5070 job at 41.4 TFLOPS fp16 next to live vLLM; 1,620 jobs/s |
+| **Rust worker** ([worker-rs](worker-rs)) | Same protocol; passes every failure test alone and mixed with Go workers (one checksum across both); image jobs **~2× faster**, **5× less** idle memory; runs real GPU jobs on the homelab |
 | **Real work on the homelab**: `llm` jobs on the live vLLM ([details](docs/homelab.md#real-work-llm-and-benchmark-jobs)) | 300 jobs × 8 prompts: **5,792 completion tok/s**; GPU worker SIGKILLed mid-run, 8 jobs retried, **600/600 jobs with exactly one result** |
 | `benchmark` job running gpu-systems-lab's matmul on the RTX 5070 | **63.6 TFLOPS fp16**, 800 MiB peak inside a 900 MB request, alongside the live chat server |
 | Autoscaler, 1,500-job burst | +2 workers in 1.8 s, peak +4, back to 0 within 9 s of the queue draining |
@@ -99,6 +100,7 @@ scripts/build.sh                                  # build the images
 docker compose up -d                              # postgres, etcd, 2 schedulers, 5 workers, prometheus, grafana
 docker compose --profile test run --rm tester     # store tests + integration tests (kills things)
 scripts/go.sh test ./...                          # unit tests
+scripts/cargo.sh test                             # Rust worker tests (worker-rs)
 ```
 
 ```bash
@@ -150,6 +152,7 @@ timestamps from Postgres rather than client clocks. Raw results: [`bench/out/`](
 | `internal/sched` | Leader loop and placement |
 | `internal/rpc`, `internal/election` | gRPC server and long-poll hub; etcd election |
 | `internal/worker` | Agent, runners (image, hash, sleep, simulated inference, `docker run`), GPU discovery |
+| [`worker-rs`](worker-rs) | The same worker in Rust (tokio, tonic): swap it in with `compose.rust.yml` or `compose.mixed.yml` |
 | `test/integration` | Tests that kill and freeze containers through the Docker API |
 | `deploy/` | Prometheus, Grafana, Kubernetes (+ KEDA) |
 

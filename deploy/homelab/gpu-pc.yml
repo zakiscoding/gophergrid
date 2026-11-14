@@ -10,7 +10,7 @@ name: gophergrid
 
 services:
   gpu-worker:
-    image: gophergrid/worker:dev
+    image: ${WORKER_IMAGE:-gophergrid/worker:dev}   # gophergrid/worker-rs:dev for the Rust worker
     restart: unless-stopped
     # VLLM_API_KEY for llm jobs, from the serving stack's own .env (never in this repo).
     env_file: [{ path: "${VLLM_ENV_FILE:-/root/gpu-systems-lab/serving/.env}", required: false }]

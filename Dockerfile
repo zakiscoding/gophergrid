@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Targets: scheduler, worker, autoscaler, ggctl, ggbench, fakellm, tester.  docker build --target scheduler -t gophergrid/scheduler .
+# Targets: scheduler, worker, worker-rs, autoscaler, ggctl, ggbench, fakellm, tester.  docker build --target scheduler -t gophergrid/scheduler .
 ARG GO_IMAGE=golang:1.27-bookworm
 
 # The build stage runs on the build machine's platform and cross-compiles for the target, so
@@ -25,6 +25,26 @@ FROM debian:bookworm-slim AS worker
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=docker:29-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=build /out/worker /worker
+EXPOSE 9100
+ENTRYPOINT ["/worker"]
+
+# The Rust worker (worker-rs): same protocol, environment variables and runtime image as the
+# Go worker, so either can be dropped into the same compose service. protoc is vendored.
+FROM --platform=$BUILDPLATFORM rust:1.99-bookworm AS rust-build
+ARG TARGETARCH
+WORKDIR /src/worker-rs
+COPY proto /src/proto
+COPY worker-rs/ ./
+RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/target     if [ "$TARGETARCH" != "$(dpkg --print-architecture)" ]; then       echo "worker-rs: build it on the target architecture (no cross toolchain here)" >&2; exit 1; fi &&     CARGO_TARGET_DIR=/target cargo build --release --locked && cp /target/release/gophergrid-worker /worker-rs
+
+# `scripts/build.sh worker-rs-test` runs the Rust tests during the build.
+FROM rust-build AS worker-rs-test
+RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/target     CARGO_TARGET_DIR=/target cargo test --release --locked
+
+FROM debian:bookworm-slim AS worker-rs
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=docker:29-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=rust-build /worker-rs /worker
 EXPOSE 9100
 ENTRYPOINT ["/worker"]
 

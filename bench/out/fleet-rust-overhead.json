@@ -1,0 +1,28 @@
+{
+  "name": "fleet-rust-overhead",
+  "jobs": 5000,
+  "job_type": "sleep",
+  "job_ms": 0,
+  "cpu_millis": 100,
+  "workers": 5,
+  "note": "5 rust workers, zero-length jobs",
+  "submit_seconds": 0.645324133,
+  "submit_jobs_per_sec": 7748.044345956608,
+  "wall_seconds": 24.214306,
+  "throughput_jobs_per_sec": 206.48950252796837,
+  "queue_latency_ms": {
+    "p50": 11666.7,
+    "p95": 22539.4,
+    "p99": 23331.2
+  },
+  "end_to_end_ms": {
+    "p50": 12112.7,
+    "p95": 22903.6,
+    "p99": 23625.9
+  },
+  "retried_jobs": 0,
+  "failed_jobs": 0,
+  "results": 5000,
+  "duplicate_results": 0,
+  "at": "2026-11-14T00:57:58.278250615Z"
+}
