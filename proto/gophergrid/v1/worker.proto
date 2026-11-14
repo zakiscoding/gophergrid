@@ -91,6 +91,10 @@ message CompleteJobRequest {
   bytes output = 6;         // JSON
   string error = 7;
   int64 duration_ms = 8;
+  // The worker refused the task before running it (no room for it right now, e.g. an
+  // earlier attempt it was told to drop still holds the GPU). Nothing ran, so the attempt
+  // doesn't count against max_attempts.
+  bool declined = 9;
 }
 
 message CompleteJobResponse {

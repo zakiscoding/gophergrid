@@ -146,7 +146,7 @@ func (s *Server) CompleteJob(ctx context.Context, req *pb.CompleteJobRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "job_id and worker_id are required")
 	}
 	out, err := s.Store.Complete(ctx, store.Completion{JobID: req.JobId, Attempt: int(req.Attempt), WorkerID: req.WorkerId,
-		Success: req.Success, Permanent: req.Permanent, Output: json.RawMessage(req.Output), Error: req.Error})
+		Success: req.Success, Permanent: req.Permanent, Declined: req.Declined, Output: json.RawMessage(req.Output), Error: req.Error})
 	if err != nil {
 		return nil, s.internal("complete", err)
 	}

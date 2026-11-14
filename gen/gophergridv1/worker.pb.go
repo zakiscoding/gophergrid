@@ -575,15 +575,19 @@ func (x *HeartbeatResponse) GetCancel() []*Attempt {
 }
 
 type CompleteJobRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkerId      string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
-	JobId         string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
-	Attempt       int32                  `protobuf:"varint,3,opt,name=attempt,proto3" json:"attempt,omitempty"`
-	Success       bool                   `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
-	Permanent     bool                   `protobuf:"varint,5,opt,name=permanent,proto3" json:"permanent,omitempty"` // retrying won't help
-	Output        []byte                 `protobuf:"bytes,6,opt,name=output,proto3" json:"output,omitempty"`        // JSON
-	Error         string                 `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
-	DurationMs    int64                  `protobuf:"varint,8,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	WorkerId   string                 `protobuf:"bytes,1,opt,name=worker_id,json=workerId,proto3" json:"worker_id,omitempty"`
+	JobId      string                 `protobuf:"bytes,2,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	Attempt    int32                  `protobuf:"varint,3,opt,name=attempt,proto3" json:"attempt,omitempty"`
+	Success    bool                   `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
+	Permanent  bool                   `protobuf:"varint,5,opt,name=permanent,proto3" json:"permanent,omitempty"` // retrying won't help
+	Output     []byte                 `protobuf:"bytes,6,opt,name=output,proto3" json:"output,omitempty"`        // JSON
+	Error      string                 `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	DurationMs int64                  `protobuf:"varint,8,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// The worker refused the task before running it (no room for it right now, e.g. an
+	// earlier attempt it was told to drop still holds the GPU). Nothing ran, so the attempt
+	// doesn't count against max_attempts.
+	Declined      bool `protobuf:"varint,9,opt,name=declined,proto3" json:"declined,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -672,6 +676,13 @@ func (x *CompleteJobRequest) GetDurationMs() int64 {
 		return x.DurationMs
 	}
 	return 0
+}
+
+func (x *CompleteJobRequest) GetDeclined() bool {
+	if x != nil {
+		return x.Declined
+	}
+	return false
 }
 
 type CompleteJobResponse struct {
@@ -775,7 +786,7 @@ const file_gophergrid_v1_worker_proto_rawDesc = "" +
 	"\agpu_ids\x18\a \x03(\tR\x06gpuIds\"\x80\x01\n" +
 	"\x11HeartbeatResponse\x12;\n" +
 	"\vassignments\x18\x01 \x03(\v2\x19.gophergrid.v1.AssignmentR\vassignments\x12.\n" +
-	"\x06cancel\x18\x02 \x03(\v2\x16.gophergrid.v1.AttemptR\x06cancel\"\xe9\x01\n" +
+	"\x06cancel\x18\x02 \x03(\v2\x16.gophergrid.v1.AttemptR\x06cancel\"\x85\x02\n" +
 	"\x12CompleteJobRequest\x12\x1b\n" +
 	"\tworker_id\x18\x01 \x01(\tR\bworkerId\x12\x15\n" +
 	"\x06job_id\x18\x02 \x01(\tR\x05jobId\x12\x18\n" +
@@ -785,7 +796,8 @@ const file_gophergrid_v1_worker_proto_rawDesc = "" +
 	"\x06output\x18\x06 \x01(\fR\x06output\x12\x14\n" +
 	"\x05error\x18\a \x01(\tR\x05error\x12\x1f\n" +
 	"\vduration_ms\x18\b \x01(\x03R\n" +
-	"durationMs\"I\n" +
+	"durationMs\x12\x1a\n" +
+	"\bdeclined\x18\t \x01(\bR\bdeclined\"I\n" +
 	"\x13CompleteJobResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason2\x82\x02\n" +

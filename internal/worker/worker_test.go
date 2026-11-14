@@ -135,7 +135,7 @@ func TestAgentEnforcesCapacity(t *testing.T) {
 		switch {
 		case r.Success:
 			ok++
-		case r.Error == "worker over capacity":
+		case r.Declined && r.Error == "worker over capacity":
 			rejected++
 		}
 	}

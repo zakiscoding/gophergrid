@@ -237,9 +237,17 @@ type Completion struct {
 	WorkerID  string
 	Success   bool
 	Permanent bool // failure that retrying won't fix
+	Declined  bool // the worker refused the task before running it
 	Output    json.RawMessage
 	Error     string
 }
+
+// MaxDeclines is how many declined attempts a job gets for free. A decline means the
+// worker had less room than the scheduler believed (typically an attempt the scheduler had
+// written off, after declaring a slow worker dead, still holds the GPU). It isn't a failure
+// of the job, so it doesn't count against max_attempts; the cap stops a confused worker from
+// bouncing a job forever.
+const MaxDeclines = 3
 
 // Outcome says what Complete did.
 type Outcome struct {
@@ -294,6 +302,25 @@ func (s *Store) Complete(ctx context.Context, c Completion) (Outcome, error) {
 				return nil
 			}
 			out.NewStatus = jobs.StatusSucceeded
+		} else if c.Declined && !c.Permanent {
+			// Attempt numbers are fencing tokens and only grow, so instead of reusing this
+			// one, give the job one more attempt.
+			var declines int
+			if err := tx.QueryRow(ctx, `SELECT count(*) FROM attempts WHERE job_id = $1 AND outcome = 'declined'`,
+				c.JobID).Scan(&declines); err != nil {
+				return err
+			}
+			if declines < MaxDeclines {
+				if _, err := tx.Exec(ctx, `UPDATE jobs SET max_attempts = max_attempts + 1 WHERE id = $1`, c.JobID); err != nil {
+					return err
+				}
+				maxAttempts++
+			}
+			if attempt >= maxAttempts {
+				out.NewStatus = jobs.StatusFailed
+			} else {
+				out.NewStatus, out.Requeued = jobs.StatusQueued, true
+			}
 		} else if c.Permanent || attempt >= maxAttempts {
 			out.NewStatus = jobs.StatusFailed
 		} else {
@@ -302,6 +329,9 @@ func (s *Store) Complete(ctx context.Context, c Completion) (Outcome, error) {
 		outcome := "succeeded"
 		if !c.Success {
 			outcome = "failed"
+			if c.Declined {
+				outcome = "declined"
+			}
 		}
 		if _, err := tx.Exec(ctx, `UPDATE attempts SET ended_at = now(), outcome = $3, error = nullif($4, '')
 			WHERE job_id = $1 AND attempt = $2`, c.JobID, c.Attempt, outcome, c.Error); err != nil {
