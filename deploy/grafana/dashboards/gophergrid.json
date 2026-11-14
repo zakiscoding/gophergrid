@@ -43,7 +43,8 @@
           "expr": "sum(rate(gophergrid_jobs_finished_total{status=\"succeeded\"}[1m]))",
           "instant": false
         }
-      ]
+      ],
+      "id": 1
     },
     {
       "type": "stat",
@@ -79,7 +80,8 @@
           "expr": "sum(gophergrid_queue_depth * on(instance) group_left gophergrid_is_leader)",
           "instant": false
         }
-      ]
+      ],
+      "id": 2
     },
     {
       "type": "stat",
@@ -115,7 +117,8 @@
           "expr": "sum(gophergrid_running_jobs * on(instance) group_left gophergrid_is_leader)",
           "instant": false
         }
-      ]
+      ],
+      "id": 3
     },
     {
       "type": "stat",
@@ -151,7 +154,8 @@
           "expr": "sum(gophergrid_workers_alive * on(instance) group_left gophergrid_is_leader)",
           "instant": false
         }
-      ]
+      ],
+      "id": 4
     },
     {
       "type": "stat",
@@ -187,7 +191,8 @@
           "expr": "histogram_quantile(0.95, sum by (le) (rate(gophergrid_queue_latency_seconds_bucket[1m])))",
           "instant": false
         }
-      ]
+      ],
+      "id": 5
     },
     {
       "type": "stat",
@@ -225,7 +230,8 @@
           "instant": false,
           "legendFormat": "{{instance}}"
         }
-      ]
+      ],
+      "id": 6
     },
     {
       "type": "timeseries",
@@ -272,7 +278,8 @@
           "expr": "sum(rate(gophergrid_jobs_submitted_total[1m]))",
           "legendFormat": "submitted"
         }
-      ]
+      ],
+      "id": 7
     },
     {
       "type": "timeseries",
@@ -314,7 +321,8 @@
           "expr": "sum by (band) (gophergrid_queue_depth * on(instance) group_left gophergrid_is_leader)",
           "legendFormat": "{{band}}"
         }
-      ]
+      ],
+      "id": 8
     },
     {
       "type": "timeseries",
@@ -366,7 +374,8 @@
           "expr": "histogram_quantile(0.99, sum by (le) (rate(gophergrid_queue_latency_seconds_bucket[1m])))",
           "legendFormat": "p99"
         }
-      ]
+      ],
+      "id": 9
     },
     {
       "type": "timeseries",
@@ -423,7 +432,8 @@
           "expr": "sum(increase(gophergrid_dead_workers_total[1m]))",
           "legendFormat": "workers declared dead"
         }
-      ]
+      ],
+      "id": 10
     },
     {
       "type": "timeseries",
@@ -465,7 +475,8 @@
           "expr": "gophergrid_worker_utilization{resource=\"cpu_reserved\"} * on(instance) group_left gophergrid_is_leader",
           "legendFormat": "{{worker}}"
         }
-      ]
+      ],
+      "id": 11
     },
     {
       "type": "timeseries",
@@ -507,7 +518,8 @@
           "expr": "gophergrid_worker_utilization{resource=\"cpu_used\"} * on(instance) group_left gophergrid_is_leader",
           "legendFormat": "{{worker}}"
         }
-      ]
+      ],
+      "id": 12
     },
     {
       "type": "timeseries",
@@ -554,7 +566,8 @@
           "expr": "histogram_quantile(0.95, sum by (le) (rate(gophergrid_assignment_delivery_seconds_bucket[1m])))",
           "legendFormat": "assignment delivery p95"
         }
-      ]
+      ],
+      "id": 13
     },
     {
       "type": "timeseries",
@@ -601,7 +614,8 @@
           "expr": "gophergrid_autoscaler_current_workers",
           "legendFormat": "current"
         }
-      ]
+      ],
+      "id": 14
     }
   ],
   "tags": [

@@ -105,6 +105,7 @@ laptop no longer hosts every container.
 - **The laptop sleeps.** If `scheduler-2` leads when it does, the iMac's scheduler takes over in
   ~5 s; its worker is declared dead after 3 s and its jobs move to the GPU PC.
 - **The iMac is a single point of failure** for Postgres and etcd, as noted in DESIGN.md.
-- **Not done yet:** the iMac's existing Prometheus doesn't scrape GopherGrid; add the
-  schedulers (`:8090`, `:8091`) and workers as targets and import
-  [the dashboard](../deploy/grafana/dashboards/gophergrid.json).
+- **Monitoring:** the homelab's central Prometheus on the iMac scrapes both schedulers and both
+  workers (worker metrics are shared on the tailnet as laptop `:9101` and GPU PC `:9102`), and
+  [the dashboard](../deploy/grafana/dashboards/gophergrid.json) is public and read-only at
+  https://grafana-proxy.vllm-gateway.workers.dev.

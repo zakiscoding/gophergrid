@@ -108,6 +108,7 @@ curl -s -XPOST localhost:8080/v1/inference/batches -d '{"prompts":2048,"shard_si
 ```
 
 Grafana is at http://localhost:3000 (view-only), Prometheus at http://localhost:9090.
+On the homelab, the same dashboard is public and read-only: https://grafana-proxy.vllm-gateway.workers.dev.
 
 ```bash
 scripts/bench.sh -n 5000 -ms 0 -name my-run -reset            # throughput and latency → bench/out/
