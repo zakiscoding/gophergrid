@@ -45,6 +45,23 @@ func main() {
 		Capacity: jobs.Resources{CPUMillis: config.Int("CPU_MILLIS", 2000), MemoryMB: config.Int("MEMORY_MB", 2048)},
 	}
 	runners := worker.Runners(config.Bool("ENABLE_CONTAINERS", false), gpuMode)
+	// Real work, enabled per worker: `llm` needs a reachable vLLM, `benchmark` a real GPU,
+	// Docker and a gpu-systems-lab checkout. The API key is read from the environment only.
+	if r := worker.LLMRunner(worker.LLMConfig{
+		BaseURL: config.String("LLM_URL", ""), APIKey: firstEnv("LLM_API_KEY", "VLLM_API_KEY"),
+		Model: config.String("LLM_MODEL", ""), Concurrency: int(config.Int("LLM_CONCURRENCY", 8)),
+	}); r != nil {
+		runners[jobs.TypeLLM] = r
+	}
+	if config.Bool("ENABLE_CONTAINERS", false) {
+		if r := worker.BenchmarkRunner(worker.BenchConfig{
+			Image: config.String("BENCH_IMAGE", ""), LabDir: config.String("BENCH_LAB_DIR", ""),
+			HFCache: config.String("BENCH_HF_CACHE", ""), OutDir: config.String("BENCH_OUT_DIR", ""),
+			GPUMode: gpuMode,
+		}); r != nil {
+			runners[jobs.TypeBenchmark] = r
+		}
+	}
 	for t := range runners {
 		info.Types = append(info.Types, t)
 	}
@@ -78,4 +95,15 @@ func main() {
 		os.Exit(1)
 	}
 	log.Info("worker stopped")
+}
+
+// firstEnv returns the first of the variables that is set. Secrets are read here only, so
+// they never pass through config logging.
+func firstEnv(keys ...string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
 }

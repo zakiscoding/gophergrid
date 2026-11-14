@@ -1,0 +1,77 @@
+{
+  "what": "GopherGrid llm jobs on the homelab: live vLLM (Qwen2.5-1.5B-Instruct, RTX 5070) via the gpu-pc worker",
+  "timestamp": "2026-11-14T01:42:21.402954+00:00",
+  "jobs_per_run": 300,
+  "prompts_per_job": 8,
+  "max_tokens": 64,
+  "cpu_millis_per_job": 1000,
+  "runs": [
+    {
+      "run": "clean",
+      "jobs": 300,
+      "succeeded": 300,
+      "failed": 0,
+      "retried": 0,
+      "wall_s": 24.6,
+      "jobs_per_s": 12.2,
+      "completion_tokens": 142436,
+      "completion_tok_s": 5791.6,
+      "job_latency_s": {
+        "p50": 12.69,
+        "p95": 23.24,
+        "max": 24.59
+      },
+      "request_latency_ms": {
+        "p50": 518,
+        "p95": 567
+      },
+      "workers": [
+        "gpu-pc"
+      ]
+    },
+    {
+      "run": "worker-killed",
+      "jobs": 300,
+      "succeeded": 300,
+      "failed": 0,
+      "retried": 8,
+      "wall_s": 32.2,
+      "jobs_per_s": 9.32,
+      "completion_tokens": 142404,
+      "completion_tok_s": 4426.1,
+      "job_latency_s": {
+        "p50": 20.44,
+        "p95": 30.89,
+        "max": 32.17
+      },
+      "request_latency_ms": {
+        "p50": 526,
+        "p95": 572
+      },
+      "workers": [
+        "gpu-pc"
+      ],
+      "kill": {
+        "held_running": 6,
+        "at": "2026-11-14T01:41:36.430019+00:00",
+        "ok": true,
+        "restarted_at": "2026-11-14T01:41:44.264163+00:00",
+        "down_s": 5.0
+      }
+    }
+  ],
+  "exactly_once": {
+    "jobs": 600,
+    "result_rows": 600,
+    "distinct_jobs_with_results": 600,
+    "duplicates": 0
+  },
+  "determinism": {
+    "jobs_same_outputs_as_run1": 3,
+    "of": 300,
+    "prompts_same_output": 1240,
+    "of_prompts": 2400,
+    "retried_jobs": 8,
+    "retried_jobs_same_as_run1": 0
+  }
+}

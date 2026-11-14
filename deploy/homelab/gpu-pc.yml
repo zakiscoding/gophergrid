@@ -2,12 +2,18 @@
 # Windows boot (zakar) or on the Ubuntu boot (zak-gpu-node); both use WORKER_ID gpu-pc.
 #
 #   docker compose -p gophergrid -f deploy/homelab/gpu-pc.yml up -d
+#
+# Real work (docs/homelab.md):
+#   llm        prompts to the live vLLM chat server (vllm-chat), over its compose network
+#   benchmark  gpu-systems-lab suites in the vLLM image, on the card, files in BENCH_OUT_DIR
 name: gophergrid
 
 services:
   gpu-worker:
     image: ${WORKER_IMAGE:-gophergrid/worker:dev}   # gophergrid/worker-rs:dev for the Rust worker
     restart: unless-stopped
+    # VLLM_API_KEY for llm jobs, from the serving stack's own .env (never in this repo).
+    env_file: [{ path: "${VLLM_ENV_FILE:-/root/gpu-systems-lab/serving/.env}", required: false }]
     environment:
       WORKER_ID: gpu-pc
       SCHEDULER_ADDRS: ${IMAC_TS_IP:-100.91.113.98}:9095,${LAPTOP_TS_IP:-100.73.132.95}:9095
@@ -17,9 +23,26 @@ services:
       CPU_MILLIS: "8000"
       MEMORY_MB: "8192"
       ENABLE_CONTAINERS: "true"   # `container` jobs run with docker run --gpus device=<uuid>
-    volumes: [/var/run/docker.sock:/var/run/docker.sock]
+      LLM_URL: ${LLM_URL:-http://vllm-chat:8000/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5-1.5b-instruct}
+      LLM_CONCURRENCY: "8"
+      BENCH_IMAGE: ${BENCH_IMAGE:-vllm/vllm-openai:v0.32.0}
+      BENCH_LAB_DIR: ${BENCH_LAB_DIR:-/root/gg-lab}           # a gpu-systems-lab checkout
+      BENCH_HF_CACHE: ${BENCH_HF_CACHE:-/root/.cache/huggingface}
+      BENCH_OUT_DIR: ${BENCH_OUT_DIR:-/root/gophergrid/bench-out}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Same path inside and out: the worker reads what the benchmark container writes.
+      - ${BENCH_OUT_DIR:-/root/gophergrid/bench-out}:${BENCH_OUT_DIR:-/root/gophergrid/bench-out}
+    networks: [default, serving]
     ports: ["127.0.0.1:9102:9100"]   # 9100 is the GPU node's node-exporter
     deploy:
       resources:
         reservations:
           devices: [{ driver: nvidia, count: all, capabilities: [gpu, utility] }]
+
+networks:
+  # gpu-systems-lab/serving's compose network, where vllm-chat answers on :8000.
+  serving:
+    external: true
+    name: ${SERVING_NETWORK:-serving_default}
