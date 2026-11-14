@@ -179,7 +179,7 @@ async fn follows_the_leader_runs_work_and_honours_cancels() {
     assert_eq!(out["checksum"], "1682d6bdc6025b5b", "same checksum as the Go worker");
 
     let too_big = by_job("too-big").expect("over-capacity task reported");
-    assert!(!too_big.success && too_big.error == "worker over capacity");
+    assert!(!too_big.success && too_big.declined && too_big.error == "worker over capacity");
 
     let slow = by_job("slow-job").expect("timed-out task reported");
     assert!(!slow.success && slow.error.starts_with("timed out"), "{}", slow.error);
