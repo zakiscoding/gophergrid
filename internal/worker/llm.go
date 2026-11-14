@@ -28,9 +28,12 @@ type LLMConfig struct {
 
 // llmPayload is an `llm` job: a list of prompts sent to the server as chat completions.
 //
-// Decoding is greedy (temperature 0) with a fixed seed unless the job asks otherwise, so a
-// retried attempt produces the same text. The scheduler's lease fencing already keeps only
-// one result per job; determinism makes that result independent of which attempt won.
+// Decoding is greedy (temperature 0) with a fixed seed unless the job asks otherwise. That
+// makes outputs repeatable on a deterministic server, but not on a real batched vLLM: the
+// kernels' numerics depend on what else is in the batch, and on the homelab only about half
+// of prompts gave identical text across two runs (bench/out/homelab-05-llm.json). The
+// guarantee therefore comes from the scheduler, not from the model: lease fencing records
+// exactly one attempt's result per job, and outputs_digest says which text that was.
 type llmPayload struct {
 	Model       string   `json:"model"`
 	Prompts     []string `json:"prompts"`

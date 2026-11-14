@@ -25,19 +25,20 @@ flowchart LR
         end
         subgraph G["GPU PC, Windows boot (zakar, WSL2)"]
             GW["worker gpu-pc<br/>8 cores + RTX 5070<br/>GPU_MODE=nvidia"]
-            V["vLLM (already running)<br/>holds ~11 GB"]
+            V["vllm-chat (vLLM)<br/>Qwen2.5-1.5B"]
         end
     end
     S1 & S2 --- PG & ET
     WL & GW -- "gRPC heartbeats" --> S1
     WL & GW -. "redirect when S2 leads" .-> S2
+    GW -- "llm jobs" --> V
 ```
 
 | Machine | Compose file | Runs | Notes |
 |---|---|---|---|
 | `mos-imac` | [`imac.yml`](../deploy/homelab/imac.yml) | Postgres, etcd, `scheduler-1` | arm64. Ports 9090/3000 are the homelab Prometheus/Grafana, so GopherGrid uses 9095/8090 |
 | `hp-laptop` | [`laptop.yml`](../deploy/homelab/laptop.yml) | `scheduler-2`, worker `hp-laptop` | A second scheduler on another machine, so the cluster survives losing the iMac's scheduler |
-| GPU PC (`zakar`, WSL2) | [`gpu-pc.yml`](../deploy/homelab/gpu-pc.yml) | worker `gpu-pc` | Real RTX 5070 from `nvidia-smi`; runs `container` jobs with `docker run --gpus device=<uuid>` |
+| GPU PC (`zakar`, WSL2) | [`gpu-pc.yml`](../deploy/homelab/gpu-pc.yml) | worker `gpu-pc` | Real RTX 5070 from `nvidia-smi`; runs `container` and `benchmark` jobs with `docker run --gpus device=<uuid>`, and `llm` jobs against `vllm-chat` |
 
 The PC is in one boot at a time. On the Ubuntu boot (`zak-gpu-node`) the same `gpu-pc.yml`
 works with the same `WORKER_ID`.
@@ -88,6 +89,8 @@ between nodes; slots below are at 250 millicores per job (16 on the laptop, 32 o
 
 | Test | Result |
 |---|---|
+| [`llm` jobs on the live vLLM](../bench/out/homelab-05-llm.json): 300 jobs × 8 prompts × 64 tokens, Qwen2.5-1.5B-Instruct on the RTX 5070 | **12.2 jobs/s, 5,792 completion tok/s**, request p50/p95 518/567 ms; 300/300, 0 retried. Same jobs again with the `gpu-pc` worker **SIGKILLed while running 6 of them**, back 5 s later: 300/300, 8 retried, 9.3 jobs/s, **0 duplicates** (600 jobs, 600 result rows) |
+| [`benchmark` job, `matmul` suite](../bench/out/homelab-06-benchmark-matmul.json): gpu-systems-lab's `benchmarks/smoke_test.py`, 8192², 1 GPU and 900 MB requested, vLLM still serving | **63.6 TFLOPS fp16, 64.0 bf16**, 32.6 tf32, 22.9 fp32; 800 MiB peak, inside the 900 MB the job asked for; 15.5 s in the container |
 | Real GPU job: a `container` job running a PyTorch fp16 matmul in the vLLM image, needing 1 GPU and 600 MB | Placed by the iMac leader on `gpu-pc`'s RTX 5070 next to the live vLLM server: **41.4 TFLOPS fp16**, 9.4 s submit to result (mostly container start) |
 | [Throughput](../bench/out/homelab-01-baseline.json): 2,000 zero-length jobs at 100 millicores | **1,620 jobs/s**, queue p50 567 ms; 1,321 ran on the GPU PC, 679 on the laptop; 0 duplicates |
 | [Control](../bench/out/homelab-02-control.json): 3,000 × 200 ms jobs | 181 jobs/s, 0 retried, 0 duplicates |
@@ -98,12 +101,44 @@ The homelab throughput is higher than the single-laptop 1,269 jobs/s in
 [RESULTS.md](RESULTS.md): Postgres and the leader run on the iMac's faster cores, and the
 laptop no longer hosts every container.
 
+## Real work: `llm` and `benchmark` jobs
+
+Two job types do real work on the GPU PC instead of simulating it. Only workers configured for
+them advertise them, so placement sends them to `gpu-pc` and nowhere else.
+
+| Type | Payload | What the worker does |
+|---|---|---|
+| `llm` | `{"prompts": [...], "max_tokens": 64}` | Chat completions against the live vLLM (`vllm-chat`, joined over its compose network), 8 in flight per job, greedy and seeded. The API key comes from the serving stack's `.env` and is never logged or returned. HTTP 4xx fails the job; 5xx, 429 and network errors retry |
+| `benchmark` | `{"suite": "vllm-sweep", "label": "awq", "model": "Qwen/...", "quantization": "awq_marlin"}` or `{"suite": "matmul"}` | Runs a [gpu-systems-lab](https://github.com/zakiscoding/gpu-systems-lab) suite in the vLLM image on the assigned GPU. The payload names a suite and checked parameters, never a command |
+
+**What "exactly once" means for real work.** A killed worker's `llm` requests *are* sent again,
+because the work isn't idempotent at the server, and in the CI test the fake server saw 272
+requests for 240 prompts. What GopherGrid guarantees is that each job records **one** result:
+the lease-fenced attempt that won, with `outputs_digest` naming its text. It does not
+guarantee that a retry writes the same text. With temperature 0 and a fixed seed, only 1,240
+of 2,400 prompts (52%) gave identical completions across two runs on the live vLLM, because
+batched kernels' numerics depend on what else is in the batch.
+
+**Benchmarks and the GPU.** Each attempt writes to its own directory
+(`BENCH_OUT_DIR/<job>/a<attempt>`), so a retry never mixes files with an earlier attempt, and
+the recorded result names the directory of the winning attempt. Before starting, the worker
+removes any container still labelled with the job, so an earlier attempt that lost its lease
+can't keep holding the card. If the lease is lost mid-run, the worker removes the container
+itself (killing the `docker` CLI alone would leave it running). A `vllm-sweep` needs the whole
+card, so it only fits once `vllm-chat` is stopped and the worker restarts with
+`GPU_RESERVED_MB=0`; until then placement leaves it queued.
+
+Drivers: [`bench/llm_homelab.py`](../bench/llm_homelab.py) (the kill test above); benchmark
+jobs are plain `POST /v1/jobs`.
+
 ## Things to know
 
 - **Leases and timeouts use the Postgres clock**, so clock skew between machines doesn't
   matter for correctness.
 - **The laptop sleeps.** If `scheduler-2` leads when it does, the iMac's scheduler takes over in
   ~5 s; its worker is declared dead after 3 s and its jobs move to the GPU PC.
+- **No retry backoff.** A failed attempt is retried at once: a job whose `llm` URL didn't
+  resolve used all 5 attempts in 0.3 s. Backoff would be the next fix.
 - **The iMac is a single point of failure** for Postgres and etcd, as noted in DESIGN.md.
 - **Monitoring:** the homelab's central Prometheus on the iMac scrapes both schedulers and both
   workers (worker metrics are shared on the tailnet as laptop `:9101` and GPU PC `:9102`), and

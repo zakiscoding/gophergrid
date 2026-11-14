@@ -26,6 +26,8 @@ Docker, then on the homelab (iMac, laptop and GPU PC over Tailscale). Each numbe
 | Batch submit | **28,083 jobs/s** (one `INSERT … SELECT FROM unnest`) |
 | Inference fan-out, 2,048 prompts → 32 GPU shards | Spread over all 3 simulated GPUs, **no GPU ever double-booked** (checked per attempt) |
 | **Homelab, 3 machines over Tailscale** ([details](docs/homelab.md)) | Leader killed on the iMac → laptop scheduler took over in **4.5 s**, 0 duplicates; real RTX 5070 job at 41.4 TFLOPS fp16 next to live vLLM; 1,620 jobs/s |
+| **Real work on the homelab**: `llm` jobs on the live vLLM ([details](docs/homelab.md#real-work-llm-and-benchmark-jobs)) | 300 jobs × 8 prompts: **5,792 completion tok/s**; GPU worker SIGKILLed mid-run, 8 jobs retried, **600/600 jobs with exactly one result** |
+| `benchmark` job running gpu-systems-lab's matmul on the RTX 5070 | **63.6 TFLOPS fp16**, 800 MiB peak inside a 900 MB request, alongside the live chat server |
 | Autoscaler, 1,500-job burst | +2 workers in 1.8 s, peak +4, back to 0 within 9 s of the queue draining |
 
 ## Architecture

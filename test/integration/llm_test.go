@@ -15,7 +15,7 @@ import (
 // OpenAI server, which stands in for the homelab's vLLM) and SIGKILLs a worker while it has
 // requests in flight. The dead worker's jobs are sent again by another worker, so the server
 // sees more requests than there are prompts, but each job records exactly one result, and
-// a retried job's output equals what the first attempt would have produced.
+// (the fake server being deterministic) a retried job's output equals the first attempt's.
 func TestLLMWorkerCrashExactlyOnce(t *testing.T) {
 	pool := db(t)
 	reset(t, pool)
