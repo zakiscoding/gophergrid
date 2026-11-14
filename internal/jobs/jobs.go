@@ -73,6 +73,9 @@ const (
 	TypeHash      = "hash"      // payload {"rounds": 200000}
 	TypeInference = "inference" // payload {"model":"qwen2.5-1.5b","prompts":8,"tokens":128}
 	TypeContainer = "container" // payload {"image":"alpine:3.20","cmd":["echo","hi"]}
+	// Real homelab work (docs/homelab.md). Only workers configured for them advertise them.
+	TypeLLM       = "llm"       // payload {"prompts":["..."],"max_tokens":64}: chat completions on a live vLLM
+	TypeBenchmark = "benchmark" // payload {"suite":"vllm-sweep","label":"fp16","model":"Qwen/..."}: gpu-systems-lab on a real GPU
 )
 
 // Defaults and limits applied to every submission.
@@ -90,7 +93,7 @@ func (s *Spec) Normalize() error {
 		return fmt.Errorf("type is required")
 	}
 	switch s.Type {
-	case TypeSleep, TypeImage, TypeHash, TypeInference, TypeContainer:
+	case TypeSleep, TypeImage, TypeHash, TypeInference, TypeContainer, TypeLLM, TypeBenchmark:
 	default:
 		return fmt.Errorf("unknown job type %q", s.Type)
 	}
@@ -130,6 +133,11 @@ func (s *Spec) Normalize() error {
 	}
 	if s.Type == TypeInference && r.GPUs == 0 {
 		return fmt.Errorf("inference jobs need gpus >= 1")
+	}
+	// A benchmark owns the card for its run. llm jobs need no GPU of their own: they are
+	// requests to a vLLM server that already holds one, placed on workers that can reach it.
+	if s.Type == TypeBenchmark && r.GPUs != 1 {
+		return fmt.Errorf("benchmark jobs need gpus = 1")
 	}
 	return nil
 }
