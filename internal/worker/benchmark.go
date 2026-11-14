@@ -62,7 +62,7 @@ var (
 	quants  = []string{"", "awq", "awq_marlin", "gptq", "gptq_marlin", "fp8", "compressed-tensors", "bitsandbytes"}
 	dtypes  = []string{"", "auto", "float16", "bfloat16"}
 	kvTypes = []string{"", "auto", "fp8"}
-	sets    = []string{"", "random", "prefix_repetition"}
+	sets    = []string{"", "random", "custom"} // custom: the lab's natural-language prompts
 	specs   = []string{"ngram", "eagle", "eagle3", "draft_model", "mtp", "suffix"}
 )
 
