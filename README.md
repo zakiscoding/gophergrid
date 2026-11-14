@@ -7,7 +7,7 @@ elected in etcd, places them on workers by CPU, memory and GPU capacity, and wor
 under leases they renew with gRPC heartbeats. When a worker or the leader dies, its jobs are
 retried elsewhere, and every job still records exactly one result.
 
-![Go](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat-square&logo=go&logoColor=white) ![gRPC](https://img.shields.io/badge/gRPC-protobuf-244c5a?style=flat-square) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![etcd](https://img.shields.io/badge/etcd-leader%20election-419EDA?style=flat-square&logo=etcd&logoColor=white) ![Prometheus](https://img.shields.io/badge/Prometheus%20%2B%20Grafana-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white) ![k6](https://img.shields.io/badge/k6-load%20test-7D64FF?style=flat-square&logo=k6&logoColor=white)
+[![CI](https://github.com/zakiscoding/gophergrid/actions/workflows/ci.yml/badge.svg)](https://github.com/zakiscoding/gophergrid/actions/workflows/ci.yml) ![Go](https://img.shields.io/badge/Go-1.27-00ADD8?style=flat-square&logo=go&logoColor=white) ![gRPC](https://img.shields.io/badge/gRPC-protobuf-244c5a?style=flat-square) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=flat-square&logo=postgresql&logoColor=white) ![etcd](https://img.shields.io/badge/etcd-leader%20election-419EDA?style=flat-square&logo=etcd&logoColor=white) ![Prometheus](https://img.shields.io/badge/Prometheus%20%2B%20Grafana-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white) ![k6](https://img.shields.io/badge/k6-load%20test-7D64FF?style=flat-square&logo=k6&logoColor=white)
 
 ## Headline numbers
 
