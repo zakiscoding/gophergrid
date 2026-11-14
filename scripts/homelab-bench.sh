@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run ggbench against the homelab deployment (deploy/homelab): Postgres and the REST API on
-# mos-imac over the tailnet. -chaos kills services of the laptop's compose project.
+# mos-imac over the tailnet. -chaos kills services of a compose project on this machine's Docker,
+# so it only applies to a local stack; the homelab's schedulers and workers run on the iMac and GPU PC.
 #   scripts/homelab-bench.sh -n 2000 -ms 0 -name homelab-baseline -reset
 set -euo pipefail
 cd "$(dirname "$0")/.."

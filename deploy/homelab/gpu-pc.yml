@@ -1,14 +1,44 @@
-# The GPU PC: a worker that reports the real RTX 5070 from nvidia-smi. Runs in WSL2 on the
-# Windows boot (zakar) or on the Ubuntu boot (zak-gpu-node); both use WORKER_ID gpu-pc.
+# The GPU PC: scheduler-2 (the iMac's scheduler-1 fails over to it), the worker `gpu-pc` that
+# reports the real RTX 5070 from nvidia-smi, and the CPU-only worker `gpu-pc-cpu`. Runs in WSL2 on
+# the Windows boot (zakar) or on the Ubuntu boot (zak-gpu-node). scheduler-2 reaches Postgres and
+# etcd on mos-imac over the tailnet; POSTGRES_PASSWORD comes from .env next to this file.
 #
-#   docker compose -p gophergrid -f deploy/homelab/gpu-pc.yml up -d
+#   docker compose -p gophergrid --env-file deploy/homelab/.env -f deploy/homelab/gpu-pc.yml up -d
+#
+# Set GPU_PC_TS_IP=100.121.51.35 on the Ubuntu boot. Ports bind to 127.0.0.1 and are shared on
+# the tailnet with `tailscale serve` (docs/homelab.md).
 #
 # Real work (docs/homelab.md):
 #   llm        prompts to the live vLLM chat server (vllm-chat), over its compose network
 #   benchmark  gpu-systems-lab suites in the vLLM image, on the card, files in BENCH_OUT_DIR
 name: gophergrid
 
+x-schedulers: &schedulers ${IMAC_TS_IP:-100.91.113.98}:9095,${GPU_PC_TS_IP:-100.88.71.33}:9095
+
 services:
+  scheduler-2:
+    image: gophergrid/scheduler:dev
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://gophergrid:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@${IMAC_TS_IP:-100.91.113.98}:5433/gophergrid?sslmode=disable
+      ETCD_ENDPOINTS: ${IMAC_TS_IP:-100.91.113.98}:2379
+      ADVERTISE_ADDR: ${GPU_PC_TS_IP:-100.88.71.33}:9095   # workers follow this when it leads
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-3s}
+    ports:
+      - "127.0.0.1:9095:9090"   # gRPC
+      - "127.0.0.1:8091:8080"   # REST and /metrics
+
+  cpu-worker:
+    image: ${WORKER_IMAGE:-gophergrid/worker:dev}
+    restart: unless-stopped
+    environment:
+      WORKER_ID: gpu-pc-cpu
+      SCHEDULER_ADDRS: *schedulers
+      GPU_MODE: none
+      CPU_MILLIS: "4000"
+      MEMORY_MB: "4096"
+    ports: ["127.0.0.1:9103:9100"]
+
   gpu-worker:
     image: ${WORKER_IMAGE:-gophergrid/worker:dev}   # gophergrid/worker-rs:dev for the Rust worker
     restart: unless-stopped
@@ -16,7 +46,7 @@ services:
     env_file: [{ path: "${VLLM_ENV_FILE:-/root/gpu-systems-lab/serving/.env}", required: false }]
     environment:
       WORKER_ID: gpu-pc
-      SCHEDULER_ADDRS: ${IMAC_TS_IP:-100.91.113.98}:9095,${LAPTOP_TS_IP:-100.73.132.95}:9095
+      SCHEDULER_ADDRS: *schedulers
       GPU_MODE: nvidia
       # vLLM keeps most of the card. Only memory.total minus this is offered to jobs.
       GPU_RESERVED_MB: ${GPU_RESERVED_MB:-11300}
