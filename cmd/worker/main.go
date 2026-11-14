@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/zakiscoding/gophergrid/internal/config"
@@ -53,6 +55,10 @@ func main() {
 		Timeout:  config.Duration("RPC_TIMEOUT", 5*time.Second),
 	}
 	defer transport.Close()
+
+	// Lets dashboards tell Go and Rust (worker-rs) workers apart.
+	promauto.NewGaugeVec(prometheus.GaugeOpts{Name: "gophergrid_worker_info", Help: "Worker implementation and version."},
+		[]string{"implementation", "version"}).WithLabelValues("go", "dev").Set(1)
 
 	go func() {
 		mux := http.NewServeMux()

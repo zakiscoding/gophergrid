@@ -1,0 +1,8 @@
+# 2026-11-13, laptop on battery (i3-1215U at 1.2 GHz), Docker Desktop, one run at a time.
+# Go:   scripts/go.sh test ./internal/worker/ -run '^$' -bench 'ImageJob|HashJob' -benchtime 10x -count 5
+# Rust: scripts/cargo.sh test --release --lib -- --ignored --nocapture bench_   (5 runs)
+# image = 512x512 blur radius 3; hash = 1,000,000 SHA-256 rounds. ms/op:
+go   image 377.1 447.6 308.5 259.1 339.1   median 339.1
+rust image 142.0 160.8 158.6 163.2 176.3   median 160.8
+go   hash  419.5 420.9 351.3 331.0 381.4   median 381.4
+rust hash  218.4 171.5 208.5 223.8 234.8   median 218.4
